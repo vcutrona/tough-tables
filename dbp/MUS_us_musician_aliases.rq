@@ -1,0 +1,17 @@
+# US musicians aliases, with genre and instrument English labels
+
+SELECT DISTINCT ?musician ?musician__URI ?genre ?genre__URI ?instrument ?instrument__URI
+WHERE {
+   ?musician__URI a dbo:MusicalArtist ;
+                  dbo:birthPlace dbr:United_States ;
+                  dbo:alias ?musician ;
+                  dbo:instrument ?instrument__URI ;
+                  dbo:genre ?genre__URI .
+
+   ?genre__URI rdfs:label ?genre .
+   ?instrument__URI rdfs:label ?instrument .
+
+   FILTER (LANG(?genre) = 'en') .
+   FILTER (LANG(?instrument) = 'en') .
+}
+ORDER BY ?musician

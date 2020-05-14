@@ -1,0 +1,23 @@
+# List of Roman Emperors, with their predecessors and successors.
+
+select distinct ?monarch ?monarch__URI (xsd:date(xsd:datetime(?deathDate)) as ?deathDate) ?predecessor ?predecessor__URI ?successor ?successor__URI
+WHERE {
+
+  ?monarch__URI dbp:title dbr:List_of_Roman_Emperors .
+  ?monarch__URI dbo:deathDate ?deathDate .
+  ?monarch__URI rdfs:label ?monarch .
+
+  OPTIONAL {
+    ?monarch__URI dbo:predecessor ?predecessor__URI .
+    ?predecessor__URI rdfs:label ?predecessor .
+  }
+  OPTIONAL {
+    ?monarch__URI dbo:successor ?successor__URI .
+    ?successor__URI rdfs:label ?successor .
+  }
+  
+  FILTER(LANG(?monarch) = 'en') .
+  FILTER(LANG(?predecessor) = 'en') .
+  FILTER(LANG(?successor) = 'en') .
+}
+order by ?deathDate

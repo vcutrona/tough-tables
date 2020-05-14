@@ -1,0 +1,21 @@
+# National Park Service's protected areas, with their total area, nearest cities, and Administrative Regions, ordered by the number of their visitors.
+
+select distinct ?protectedArea ?protectedArea__URI ?area ?visitors ?nearestCity ?nearestCity__URI ?admRegion ?admRegion__URI where {
+  
+  ?protectedArea__URI a dbo:ProtectedArea .
+  ?protectedArea__URI foaf:name ?protectedArea .
+  ?protectedArea__URI dbo:areaTotal ?area .
+  ?protectedArea__URI dbo:nearestCity ?nearestCity__URI .
+  ?protectedArea__URI dbo:location|dbo:region|dbo:state ?admRegion__URI .
+  ?protectedArea__URI dbo:numberOfVisitors ?visitors .
+  ?protectedArea__URI dbp:governingBody dbr:National_Park_Service .
+  
+  ?admRegion__URI a dbo:AdministrativeRegion .
+  ?admRegion__URI rdfs:label ?admRegion .  
+  
+  ?nearestCity__URI rdfs:label ?nearestCity .
+
+  FILTER(LANG(?protectedArea) = 'en') .
+  FILTER(LANG(?admRegion) = 'en') .
+  FILTER(LANG(?nearestCity) = 'en') .
+}

@@ -1,0 +1,27 @@
+# soccer players, who are born in a country with more than 10 million inhabitants,
+# who played as a goalkeeper for a club that has a stadium with more than 30.000 seats
+
+SELECT DISTINCT ?goalkeeper ?goalkeeper__URI ?birthPlace ?birthPlace__URI ?team ?team__URI ?ground ?ground__URI WHERE {
+  ?goalkeeper__URI dbo:position <http://dbpedia.org/resource/Goalkeeper_(association_football)> ;
+                   foaf:name ?goalkeeper ;
+                   dbo:birthPlace ?birthPlace__URI ;
+                   dbo:team ?team__URI .
+
+  ?birthPlace__URI dbo:populationTotal ?birthPlacePopulation ;
+                   rdfs:label          ?birthPlace .
+  
+  ?team__URI   foaf:name  ?team ;
+               dbo:ground ?ground__URI .
+
+  ?ground__URI foaf:name ?ground ;
+               dbo:seatingCapacity ?groudCapacity .
+          
+          
+  
+  FILTER (?birthPlacePopulation > 10000000) .
+  FILTER (?groudCapacity > 30000) .
+  FILTER (LANG(?birthPlace) = 'en') .
+  FILTER (LANG(?team) = 'en') .
+  FILTER (LANG(?ground) = 'en') .
+
+} ORDER BY ?goalkeeper

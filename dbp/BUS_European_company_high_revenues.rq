@@ -1,0 +1,28 @@
+# Products of European companies playing in the Manufacturing and production industry, with revenues > 1KK
+
+select distinct ?product ?product__URI ?company ?company__URI ?industry ?industry__URI ?location ?location__URI ?revenue ?country ?country__URI where {
+  ?company__URI a dbo:Company ;
+                rdfs:label ?company ;
+                dbo:industry ?industry__URI ;
+                dbo:product ?product__URI ;
+                dbo:location ?location__URI ;
+                dbo:revenue ?revenue .
+  
+  ?industry__URI rdfs:label ?industry ;
+                 dct:subject/skos:broader dbc:Production_and_manufacturing .
+
+  ?product__URI rdfs:label ?product .
+  ?location__URI rdfs:label ?location;
+                 dbo:country ?country__URI .
+
+  ?country__URI rdfs:label ?country ;
+                dct:subject dbc:Countries_in_Europe .
+  
+  FILTER(?revenue > 1000000) .
+  FILTER(LANG(?company) = 'en') .
+  FILTER(LANG(?industry) = 'en') .
+  FILTER(LANG(?product) = 'en') .
+  FILTER(LANG(?location) = 'en') .
+  FILTER(LANG(?country) = 'en') .
+}
+ORDER BY (?revenue)

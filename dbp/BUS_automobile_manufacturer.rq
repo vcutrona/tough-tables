@@ -1,0 +1,26 @@
+# Automobile manufacturers with the list of vehicles assembled in other countries, along with the number of sold vehicles for each year.
+
+select distinct ?manufacturer ?manufacturer__URI ?manufacturerCountry ?manufacturerCountry__URI ?automobile ?automobile__URI ?assemblyPlace ?assemblyPlace__URI ?year ?sold where {
+  
+  ?manufacturer__URI a dbo:Company .
+  ?manufacturer__URI rdfs:label ?manufacturer .
+  ?manufacturer__URI dbo:location|dbo:foundationPlace|dbo:locationCity  [dbo:country ?manufacturerCountry__URI] .
+
+  ?manufacturerCountry__URI rdfs:label ?manufacturerCountry .
+
+  ?automobile__URI dbo:manufacturer ?manufacturer__URI .
+  ?automobile__URI rdfs:label ?automobile .
+  ?automobile__URI a dbo:Automobile .
+  ?automobile__URI dbo:assembly ?assemblyPlace__URI .
+  ?automobile__URI dbo:sales [dbo:numberSold ?sold; dbo:year ?year] .
+
+  ?assemblyPlace__URI dbo:country ?assemblyCountry__URI .
+  ?assemblyPlace__URI rdfs:label ?assemblyPlace .
+
+  FILTER(?manufacturerCountry__URI != ?assemblyCountry__URI) .
+  FILTER(LANG(?manufacturer) = 'en') .
+  FILTER(LANG(?automobile) = 'en') .
+  FILTER(LANG(?manufacturerCountry) = 'en') .
+  FILTER(LANG(?assemblyPlace) = 'en') .
+}
+order by (?year)

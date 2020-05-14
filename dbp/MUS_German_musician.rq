@@ -1,0 +1,19 @@
+# German musicians, with genre, instrument, and band English labels
+
+SELECT ?musician ?musician__URI ?genre ?genre__URI ?instrument ?instrument__URI ?band ?band__URI WHERE {
+   ?musician__URI a dbo:MusicalArtist ;
+                  dbo:birthPlace dbr:Germany ;
+                  foaf:name ?musician ;
+                  dbo:instrument ?instrument__URI ;
+                  dbo:genre ?genre__URI ;
+                  dbo:associatedBand ?band__URI .
+
+   ?genre__URI rdfs:label ?genre .
+   ?instrument__URI rdfs:label ?instrument .
+   ?band__URI rdfs:label ?band .
+
+   FILTER (LANG(?genre) = 'en') .
+   FILTER (LANG(?instrument) = 'en') .
+   FILTER (LANG(?band) = 'en') .
+}
+ORDER BY ?musician

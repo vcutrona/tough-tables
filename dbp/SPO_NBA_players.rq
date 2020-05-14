@@ -1,0 +1,21 @@
+# NBA players, with their team and position by year.
+
+select distinct ?player ?player__URI ?startYear ?team ?team__URI ?position ?position__URI
+WHERE {
+  ?player__URI a dbo:BasketballPlayer .
+  ?player__URI rdfs:label ?player .
+  ?player__URI dbo:termPeriod/dbo:activeYearsStartYear ?startYear .
+  ?player__URI dbo:position ?position__URI .
+  ?player__URI dbo:team|dbp:team ?team__URI .
+  ?player__URI dbo:league dbr:NBA .
+  
+  ?position__URI rdfs:label ?position .
+
+  ?team__URI a dbo:BasketballTeam .
+  ?team__URI rdfs:label ?team .
+  
+  FILTER(LANG(?position) = 'en') .
+  FILTER(LANG(?player) = 'en') .
+  FILTER(LANG(?team) = 'en') .
+}
+order by ?player desc(?startYear)

@@ -1,0 +1,24 @@
+# Rock bands that published with record labels founded by musicians, songwriters, or composers, ordered by their starting year. 
+
+select distinct ?band ?band__URI ?startYear ?label__URI ?label ?labelFounder ?labelFounder__URI ?occupation ?occupation__URI where {
+  ?band__URI a dbo:Band .
+  ?band__URI foaf:name ?band .
+  ?band__URI dbo:recordLabel ?label__URI .
+  ?band__URI dbo:genre dbr:Rock_music .
+  ?band__URI dbo:activeYearsStartYear ?startYear .
+  
+  ?label__URI dbo:foundedBy ?labelFounder__URI .
+  ?label__URI rdfs:label ?label .
+  
+  ?labelFounder__URI foaf:name ?labelFounder .
+  ?labelFounder__URI dbo:occupation ?occupation__URI .
+
+  ?occupation__URI rdfs:label ?occupation .
+
+  FILTER(?occupation__URI IN (dbr:Songwriter, dbr:Musician, dbr:Composer))
+  FILTER(LANG(?band) = 'en') .
+  FILTER(LANG(?label) = 'en') .
+  FILTER(LANG(?labelFounder) = 'en') .
+  FILTER(LANG(?occupation) = 'en') .
+}
+order by ?startYear

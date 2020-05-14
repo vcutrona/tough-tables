@@ -1,0 +1,27 @@
+# European countries, with their capital and most populated city
+select ?country ?country__URI ?capital ?capital__URI ?most_populated_city ?most_populated_city__URI ?maxPop where {
+  ?most_populated_city__URI dbo:country ?country__URI ;
+                            dbo:populationTotal ?population ;
+                            foaf:name ?most_populated_city .
+  ?country__URI dbo:capital ?capital__URI ;
+                foaf:name ?country .
+  ?capital__URI foaf:name ?capital .
+  {
+    SELECT ?country__URI (MAX(?pop) as ?maxPop) WHERE {
+      ?biggestCity a ?type ;
+                   dbo:populationTotal ?pop ;
+                   dbo:country ?country__URI .
+      ?country__URI a dbo:Country;
+                    dct:subject dbc:Countries_in_Europe .
+      FILTER(?type IN (dbo:City, dbo:Town, dbo:Village))
+    }
+    GROUP BY ?country__URI
+  }
+  FILTER(LANG(?most_populated_city) = 'en') .
+  FILTER(LANG(?country) = 'en') .
+  FILTER(LANG(?capital) = 'en') .
+}
+GROUP BY ?most_populated_city__URI
+HAVING (?population = ?maxPop)
+ORDER BY desc(?maxPop)
+

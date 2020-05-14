@@ -1,0 +1,26 @@
+# European prime ministers, with parties they joined in.
+
+select distinct ?primeMinister ?primeMinister__URI ?party ?party__URI ?country ?country__URI
+WHERE {
+  {
+    ?primeMinister__URI a dbo:Person .
+    [] dbo:primeMinister  ?primeMinister__URI .
+  }
+  UNION
+  {
+    ?primeMinister__URI a dbo:PrimeMinister .
+  }
+  ?primeMinister__URI foaf:name ?primeMinister .
+  ?primeMinister__URI dbo:party ?party__URI .
+
+  ?party__URI dbo:country ?country__URI .
+  ?party__URI rdfs:label ?party .   
+
+  ?country__URI rdfs:label ?country .
+  ?country__URI dct:subject dbc:Countries_in_Europe .
+
+  FILTER(LANG(?country) = 'en') .
+  FILTER(LANG(?party) = 'en') .
+  FILTER(LANG(?primeMinister) = 'en') .
+}
+order by ?country

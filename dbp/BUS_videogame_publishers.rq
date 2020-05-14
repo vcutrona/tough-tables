@@ -1,0 +1,33 @@
+# Worldwide videogame publishers that have published a game for a next-gen platform (2010 and on) that was not existing
+# at that time, along with the videogame genre and release date. Data about the latest videogame platforms
+# (no successor), which had at least 2 predecessors.
+
+select distinct ?publisher ?publisher__URI ?videogame ?videogame__URI ?genre ?genre__URI ?platform ?platform__URI ?releaseDate where {
+  ?videogame__URI a dbo:VideoGame .
+  ?videogame__URI rdfs:label ?videogame .
+  ?videogame__URI dbo:publisher ?publisher__URI .
+  ?videogame__URI dbo:genre ?genre__URI .
+  ?videogame__URI dbo:computingPlatform ?platform__URI.
+  ?videogame__URI dbo:releaseDate ?releaseDate .
+  
+  ?publisher__URI rdfs:label ?publisher .
+  ?publisher__URI a dbo:Company .
+
+  ?genre__URI rdfs:label ?genre .
+
+  ?platform__URI rdfs:label ?platform .
+  ?platform__URI dbp:releasedate ?platformReleaseDate .
+  ?platform__URI dbo:predecessor ?predecessor1 .
+
+  ?predecessor1 dbo:predecessor ?predecessor2 .
+ 
+  FILTER NOT EXISTS {
+     ?platform__URI dbo:successor ?successor .
+  }
+  FILTER(?releaseDate < "2010-01-01"^^xsd:dateTime) .
+  FILTER(?platformReleaseDate > "2010-01-01"^^xsd:dateTime) .
+  FILTER(LANG(?videogame) = 'en') .
+  FILTER(LANG(?publisher) = 'en') .
+  FILTER(LANG(?genre) = 'en') .
+  FILTER(LANG(?platform) = 'en') .
+}

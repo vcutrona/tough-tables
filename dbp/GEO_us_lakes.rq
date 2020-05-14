@@ -1,0 +1,28 @@
+# Area and locations of lakes located in U.S. states that have more than 100 lakes
+
+select ?lake ?lake__URI ?area ?location ?location__URI ?state ?state__URI where {
+  ?lake__URI a dbo:Lake;
+             dbo:location ?location__URI;
+             dbo:areaTotal ?area ;
+             rdfs:label ?lake .
+  ?location__URI dbo:isPartOf ?state__URI ;
+                 rdfs:label ?location .
+
+  ?state__URI rdfs:label ?state .
+
+  {
+    SELECT distinct ?state__URI (count(?lake__URI) as ?lakes) WHERE {
+      ?lake__URI a dbo:Lake;
+                 dbo:location/dbo:isPartOf ?state__URI .
+      ?state__URI dbo:country dbr:United_States .
+    }
+    GROUP BY ?state__URI
+    HAVING (count(?lake__URI) > 100)
+  }
+
+  FILTER(LANG(?lake) = 'en') .
+  FILTER(LANG(?location) = 'en') .
+  FILTER(LANG(?state) = 'en') .
+}
+
+order by (?lake__URI)

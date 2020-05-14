@@ -1,0 +1,35 @@
+# List of Formula One driver, with the Grand Prix they won, the year of the event, and the team they were driving for.
+# We consider only drivers of  teams that won 50 or more races.
+# Driver sorted by number of won GP.
+
+select distinct ?driver ?driver__URI ?team ?team__URI ?gp ?gp__URI ?year
+WHERE {
+  GRAPH <http://dbpedia.org>
+  {
+    select ?driver__URI, (COUNT(?gp__URI) AS ?driverWins) where {
+      ?gp__URI dbo:firstDriver ?driver__URI.
+      ?driver__URI a dbo:FormulaOneRacer .
+    }
+    group by ?driver__URI
+  }
+  GRAPH <http://dbpedia.org>
+  {
+    ?gp__URI dbo:firstDriver ?driver__URI.
+    ?gp__URI dbo:firstDriverTeam ?team__URI .
+    ?gp__URI rdfs:label ?gp .
+    ?gp__URI dbp:year|dbp:yearOfRace ?year .
+
+    ?team__URI a dbo:FormulaOneTeam .
+    ?team__URI rdfs:label ?team .
+    ?team__URI dbp:wins ?wins .
+
+    ?driver__URI a dbo:FormulaOneRacer .
+    ?driver__URI rdfs:label ?driver .
+
+    FILTER(LANG(?gp) = 'en') .
+    FILTER(LANG(?team) = 'en') .
+    FILTER(LANG(?driver) = 'en') .
+    FILTER(?wins > 50) .
+  }
+}
+order by desc(?driverWins)

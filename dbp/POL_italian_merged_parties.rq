@@ -1,0 +1,29 @@
+# List of Italian parties that have merged into a new party based on different ideologies (more, less, completely different, etc.), with their merging year (extinctionYear).
+
+select distinct ?oldParty ?oldParty__URI ?originalIdeology ?originalIdeology__URI ?newParty ?newParty__URI ?currentIdeology ?currentIdeology__URI ?extinctionYear
+WHERE {
+  VALUES ?country {"Italy"^^<http://www.w3.org/1999/02/22-rdf-syntax-ns#langString> dbr:Politics_of_Italy dbr:Italy dbr:Liberalism_and_radicalism_in_Italy dbr:Kingdom_of_Italy "italy"^^<http://www.w3.org/1999/02/22-rdf-syntax-ns#langString> }
+  ?oldParty__URI a dbo:PoliticalParty .
+  ?oldParty__URI dbp:country|dbo:country ?country .
+  ?oldParty__URI dbo:ideology ?originalIdeology__URI .
+  ?oldParty__URI dbo:mergedIntoParty ?newParty__URI .
+  ?oldParty__URI foaf:name ?oldParty .
+  ?oldParty__URI dbo:extinctionYear ?extinctionYear .
+
+  ?originalIdeology__URI a dbo:Organisation .
+  ?originalIdeology__URI rdfs:label ?originalIdeology .
+
+  ?newParty__URI a dbo:PoliticalParty .
+  ?newParty__URI dbo:ideology ?currentIdeology__URI .
+  ?newParty__URI foaf:name ?newParty .
+
+  ?currentIdeology__URI a dbo:Organisation .
+  ?currentIdeology__URI rdfs:label ?currentIdeology .
+  
+  FILTER(?originalIdeology__URI != ?currentIdeology__URI) .
+  FILTER(LANG(?oldParty) = 'en') .
+  FILTER(LANG(?newParty) = 'en') .
+  FILTER(LANG(?currentIdeology) = 'en') .
+  FILTER(LANG(?originalIdeology) = 'en') .
+}
+order by desc(?extinctionYear)
