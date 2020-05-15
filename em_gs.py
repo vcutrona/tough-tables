@@ -86,6 +86,14 @@ def wiki_to_gs(input_dir, output_dir, endpoint):
             write_df(df, f'{output_dir}/WIKI_{file}')
 
 
+def web_to_gs(input_dir, output_dir):
+    for currentpath, _, files in os.walk(input_dir):
+        for file in files:
+            logger.info(f'Processing file: {currentpath}/{file}')
+            df = pd.read_csv(f'{currentpath}/{file}', dtype=object)
+            write_df(df, f'{output_dir}/WEB_{file}')
+
+
 def check_uris(folder):
     for currentpath, _, files in os.walk(folder):
         for file in files:
@@ -446,6 +454,13 @@ if __name__ == '__main__':
     wiki_argparser.add_argument('--endpoint', type=str, default=SPARQL_ENDPOINT,
                                 help=f'SPARQL endpoint. DEFAULT: {SPARQL_ENDPOINT}')
 
+    web_argparser = subparsers.add_parser("web", help='Transform Web tables.')
+    web_argparser.set_defaults(action='web')
+    web_argparser.add_argument('--input_folder', type=str, default='./web',
+                                help='Path to the folder containing Web tables. DEFAULT: ./web')
+    web_argparser.add_argument('--output_folder', type=str, default='./gs',
+                                help='Path to output folder. DEFAULT: ./gs')
+
     dbp_argparser = subparsers.add_parser("dbp", help='Create tables from DBpedia SPARQL queries.')
     dbp_argparser.set_defaults(action='dbp')
     dbp_argparser.add_argument('--input_folder', type=str, default='./dbp',
@@ -519,6 +534,8 @@ if __name__ == '__main__':
     if "action" in args:
         if args.action == 'wiki':
             wiki_to_gs(args.input_folder, args.output_folder, args.endpoint)
+        elif args.action == 'web':
+            web_to_gs(args.input_folder, args.output_folder)
         elif args.action == 'dbp':
             sparql_to_gs(args.input_folder, args.output_folder, args.endpoint)
         elif args.action == 't2d':
