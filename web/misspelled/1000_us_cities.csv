@@ -1,4 +1,4 @@
-"city","city__URI","misspelled_city","misspelled_city__URI","state","state__URI"
+"city","city__URI","city_misspelled","city_misspelled__URI","state","state__URI"
 "Abbeville","http://dbpedia.org/resource/Abbeville,_Georgia","Abbevile","http://dbpedia.org/resource/Abbeville,_Georgia","Georgia, GA","http://dbpedia.org/resource/Georgia_(U.S._state)"
 "Abbeville","http://dbpedia.org/resource/Abbeville,_Georgia","Abeville","http://dbpedia.org/resource/Abbeville,_Georgia","Georgia, GA","http://dbpedia.org/resource/Georgia_(U.S._state)"
 "Abilene","http://dbpedia.org/resource/Abilene,_Texas","Abiline","http://dbpedia.org/resource/Abilene,_Texas","Texas, TX","http://dbpedia.org/resource/Texas_(state)"

@@ -1,15 +1,7 @@
-cea_gs_*/
-cea_gs/tables/*.csv
-cea_gs/*.csv
-experiments/*.csv
-generators/*.json
-generators/*.hdf5
-gt/*/
-gt/*.csv
-gt/*.sh
-gt/*.txt
-resources/
-scripts/
+*_bkp/
+2T_cea/tables/*.csv
+2T_cea/*.csv
+gs/*.csv
 
 # Created by https://www.gitignore.io/api/python,virtualenv,jupyternotebooks
 # Edit at https://www.gitignore.io/?templates=python,virtualenv,jupyternotebooks

@@ -18,7 +18,7 @@ SPARQL_ENDPOINT = 'http://dbpedia.org/sparql'
 TABLE_TYPES = ['DBP', 'WIKI', 'WEB', 'T2D']
 
 
-def write_df(df, filename, drop=True, strip=True, index=False, header=True, quoting=csv.QUOTE_ALL):
+def _write_df(df, filename, drop=True, strip=True, index=False, header=True, quoting=csv.QUOTE_ALL):
     if drop:
         df = df.drop_duplicates()
         if strip:
@@ -40,7 +40,7 @@ def to_dbp_uri(uri, endpoint):
                 "http://dbpedia.org/resource/"
             )
     except:
-        logger.debug(f'Impossible to create a valid URI from {db_uri}')
+        logger.critical(f'Impossible to create a valid URI from {db_uri}')
         return None
     query = {
         "proto": {
@@ -50,18 +50,18 @@ def to_dbp_uri(uri, endpoint):
         "$limit": 1,
         "$where": f'<{db_uri}> ?p ?o'
     }
-    res = json_exec(query, endpoint)
+    res = _json_exec(query, endpoint)
     if len(res) > 0:
         return db_uri
     logger.warning(f'No DB_URI found for {uri} -> {db_uri}')
     return None
 
 
-def json_exec(query, endpoint, debug=False):
+def _json_exec(query, endpoint, debug=False):
     return sparqlTransformer(query, {'endpoint': endpoint, 'debug': debug})
 
 
-def sparql_exec(query, endpoint):
+def _sparql_exec(query, endpoint):
     sparql = SPARQLWrapper(endpoint)
     sparql.setQuery(query)
     sparql.setReturnFormat(CSV)
@@ -69,65 +69,42 @@ def sparql_exec(query, endpoint):
     return result
 
 
-def wiki_to_gs(input_dir, output_dir, endpoint):
-    for currentpath, _, files in os.walk(input_dir):
-        for file in files:
-            logger.info(f'Processing file: {currentpath}/{file}')
-            df = pd.read_csv(f'{currentpath}/{file}', dtype=object)
-            for col in df.columns:
-                if '__URI' in col:
-                    new_values = []
-                    for uri in df[col]:
-                        # dbp_uri = to_dbp_uri(uri, endpoint)
-                        # if dbp_uri is None and uri is not np.nan:
-                        # logger.warning(f'No DB_URI found for {uri} in {col}')
-                        new_values.append(to_dbp_uri(uri, endpoint))
-                    df[col] = new_values
-            write_df(df, f'{output_dir}/WIKI_{file}')
-
-
-def web_to_gs(input_dir, output_dir):
-    for currentpath, _, files in os.walk(input_dir):
-        for file in files:
-            logger.info(f'Processing file: {currentpath}/{file}')
-            df = pd.read_csv(f'{currentpath}/{file}', dtype=object)
-            write_df(df, f'{output_dir}/WEB_{file}')
-
-
-def check_uris(folder):
-    for currentpath, _, files in os.walk(folder):
-        for file in files:
-            logger.info(f'Processing file: {currentpath}/{file}')
-            df = pd.read_csv(f'{currentpath}/{file}', dtype=object)
-            for col in df.columns:
-                if '__URI' in col:
-                    for uri in df[col]:
-                        if uri is not np.nan and "http://dbpedia.org/resource/" not in uri:
-                            logger.error(f"Unvalid URI: {uri}")
+def _check_uris(folder):
+    with os.scandir(folder) as it:
+        for entry in it:
+            if entry.name.endswith(".csv") and entry.is_file():
+                logger.info(f'Processing file: {entry.path}')
+                df = pd.read_csv(entry.path, dtype=object)
+                for col in df.columns:
+                    if '__URI' in col:
+                        for uri in df[col]:
+                            if uri is not np.nan and "http://dbpedia.org/resource/" not in uri:
+                                logger.error(f"Unvalid URI: {uri}")
 
 
 def gt_stats(folder):
     stats = {}
-    for currentpath, _, files in os.walk(folder):
-        for file in files:
-            logger.info(f'Processing file: {currentpath}/{file}')
-            df = pd.read_csv(f'{currentpath}/{file}', dtype=object)
-            stats[file] = {
-                'rows': df.shape[0],
-                'columns': 0,
-                'cells': 0,
-                'annotated_columns': 0,
-                'entities': set(),
-                'annotated_cells': 0}
-            for col in df.columns:
-                if '__URI' in col:
-                    stats[file]['entities'].update(df[col].unique())
-                    stats[file]['annotated_cells'] = stats[file]['annotated_cells'] + df[col].dropna().shape[0]
-                    stats[file]['annotated_columns'] = stats[file]['annotated_columns'] + 1
-                else:
-                    stats[file]['columns'] = stats[file]['columns'] + 1
-                    stats[file]['cells'] = stats[file]['cells'] + df[col].shape[0]
-            stats[file]['entities'] = list(stats[file]['entities'])
+    with os.scandir(folder) as it:
+        for entry in it:
+            if entry.name.endswith(".csv") and entry.is_file():
+                logger.info(f'Processing file: {entry.path}')
+                df = pd.read_csv(entry.path, dtype=object)
+                stats[entry.name] = {
+                    'rows': df.shape[0],
+                    'columns': 0,
+                    'cells': 0,
+                    'annotated_columns': 0,
+                    'entities': set(),
+                    'annotated_cells': 0}
+                for col in df.columns:
+                    if '__URI' in col:
+                        stats[entry.name]['entities'].update(df[col].unique())
+                        stats[entry.name]['annotated_cells'] = stats[entry.name]['annotated_cells'] + df[col].dropna().shape[0]
+                        stats[entry.name]['annotated_columns'] = stats[entry.name]['annotated_columns'] + 1
+                    else:
+                        stats[entry.name]['columns'] = stats[entry.name]['columns'] + 1
+                        stats[entry.name]['cells'] = stats[entry.name]['cells'] + df[col].shape[0]
+                stats[entry.name]['entities'] = list(stats[entry.name]['entities'])
 
     for t_type in ['ALL'] + TABLE_TYPES:
         if t_type == 'ALL':
@@ -167,26 +144,55 @@ def gt_stats(folder):
     return stats
 
 
-def sparql_to_gs(input_dir, output_dir, endpoint):
-    for currentpath, _, files in os.walk(input_dir):
-        for file in files:
-            logger.info(f'Processing file: {currentpath}/{file}')
-            with open(f'{output_dir}/DBP_{file.replace(".rq", ".csv")}', 'wb') as out:
-                out.write(sparql_exec(open(f'{currentpath}/{file}', 'r').read(), endpoint))
+def wiki_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
+    with os.scandir(input_dir) as it:
+        for entry in it:
+            if entry.name.endswith(".csv") and entry.is_file():
+                logger.info(f'Processing file: {entry.path}')
+                df = pd.read_csv(entry.path, dtype=object)
+                for col in df.columns:
+                    if '__URI' in col:
+                        new_values = []
+                        for uri in df[col]:
+                            # dbp_uri = to_dbp_uri(uri, endpoint)
+                            # if dbp_uri is None and uri is not np.nan:
+                            # logger.warning(f'No DB_URI found for {uri} in {col}')
+                            new_values.append(to_dbp_uri(uri, endpoint))
+                        df[col] = new_values
+                _write_df(df, f'{output_dir}/{prefix}WIKI_{suffix}{entry.name}')
 
 
-def t2d_to_gs(input_dir, output_dir, endpoint):
-    for currentpath, _, files in os.walk(input_dir):
-        for file in files:
-            logger.info(f'Processing file: {currentpath}/{file}')
-            df = pd.read_csv(f'{currentpath}/{file}', dtype=object)
-            for col in df.columns:
-                if '__URI' in col:
-                    new_values = []
-                    for uri in df[col]:
-                        new_values.append(to_dbp_uri(str(uri).split(" ")[0], endpoint))
-                    df[col] = new_values
-            write_df(df, f'{output_dir}/T2D_{file}')
+def web_to_gs(input_dir, output_dir, prefix='', suffix=''):
+    with os.scandir(input_dir) as it:
+        for entry in it:
+            if entry.name.endswith(".csv") and entry.is_file():
+                logger.info(f'Processing file: {entry.path}')
+                df = pd.read_csv(entry.path, dtype=object)
+                _write_df(df, f'{output_dir}/{prefix}WEB{suffix}_{entry.name}')
+
+
+def sparql_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
+    with os.scandir(input_dir) as it:
+        for entry in it:
+            if entry.name.endswith(".rq") and entry.is_file():
+                logger.info(f'Processing file: {entry.path}')
+                with open(f'{output_dir}/{prefix}DBP{suffix}_{entry.name.replace(".rq", ".csv")}', 'wb') as out:
+                    out.write(_sparql_exec(open(entry.path, 'r').read(), endpoint))
+
+
+def t2d_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
+    with os.scandir(input_dir) as it:
+        for entry in it:
+            if entry.name.endswith(".csv") and entry.is_file():
+                logger.info(f'Processing file: {entry.path}')
+                df = pd.read_csv(entry.path, dtype=object)
+                for col in df.columns:
+                    if '__URI' in col:
+                        new_values = []
+                        for uri in df[col]:
+                            new_values.append(to_dbp_uri(str(uri).split(" ")[0], endpoint))
+                        df[col] = new_values
+                _write_df(df, f'{output_dir}/{prefix}T2D{suffix}_{entry.name}')
 
 
 """
@@ -298,12 +304,12 @@ def compute_score(gs_file, submission_file, tables_folder, wrong_cells_file, rem
         wcells = pd.DataFrame(data=wrong_cells)[['table', 'col', 'row', 'col_name', 'value', 'actual', 'target']]
 
     if wrong_cells_file:
-        write_df(wcells, wrong_cells_file, strip=False)
+        _write_df(wcells, wrong_cells_file, strip=False)
 
     return scores
 
 
-def get_sameas(uri, endpoint):
+def _get_sameas(uri, endpoint):
     sameas = set()
     try:
         sameas_query = {
@@ -342,8 +348,8 @@ def get_sameas(uri, endpoint):
             }
         }
 
-        res1 = json_exec(sameas_query, endpoint)
-        res2 = json_exec(inverse_sameas_query, endpoint)
+        res1 = _json_exec(sameas_query, endpoint)
+        res2 = _json_exec(inverse_sameas_query, endpoint)
         if res1:
             sameas.add(res1[0]["db"])
             if isinstance(res1[0]["sameas"], list):
@@ -379,53 +385,56 @@ def to_cea_format(input_dir, output_tables_dir, output_gs_dir, endpoint, sameas_
     annotations = []
     ext_annotations = []
 
-    for currentpath, _, files in os.walk(input_dir):
-        for file in files:
-            tab_id = file[:-4]
+    with os.scandir(input_dir) as it:
+        for entry in it:
+            if entry.name.endswith(".csv") and entry.is_file():
+                tab_id = entry.name[:-4]
 
-            logger.info(f'Processing file: {currentpath}/{file}')
-            df = pd.read_csv(f'{currentpath}/{file}', dtype=object)
+                logger.info(f'Processing file: {entry.path}')
+                df = pd.read_csv(entry.path, dtype=object)
 
-            count = 0
-            for col_id, (columnName, columnData) in enumerate(df.iteritems()):
-                if '__URI' in columnName:
-                    count = count + 1
-                    for row_id, value in columnData.iteritems():
-                        if value is not np.nan:
-                            # row_id + 1 due to the header row
-                            ann = {'tab_id': tab_id,
-                                   'col_id': str(col_id - count),
-                                   'row_id': str(row_id + 1),
-                                   'entity': value}
-                            annotations.append(ann)
+                count = 0
+                for col_id, (columnName, columnData) in enumerate(df.iteritems()):
+                    if '__URI' in columnName:
+                        count = count + 1
+                        for row_id, value in columnData.iteritems():
+                            if value is not np.nan:
+                                # row_id + 1 due to the header row
+                                ann = {'tab_id': tab_id,
+                                       'col_id': str(col_id - count),
+                                       'row_id': str(row_id + 1),
+                                       'entity': value}
+                                annotations.append(ann)
 
-                            if value not in sameas_dict:
-                                logger.info(f'Getting sameas for entity: {value}')
-                                sameas_entities = get_sameas(value, endpoint)
-                                for entity in sameas_entities:
-                                    sameas_dict[entity] = sameas_entities
+                                if value not in sameas_dict:
+                                    logger.info(f'Getting sameas for entity: {value}')
+                                    sameas_entities = _get_sameas(value, endpoint)
+                                    for entity in sameas_entities:
+                                        sameas_dict[entity] = sameas_entities
 
-                            ann['entity'] = " ".join(sameas_dict[value])
-                            ext_annotations.append(ann)
+                                ann['entity'] = " ".join(sameas_dict[value])
+                                ext_annotations.append(ann)
 
-            df = df[[col for col in df.columns if '__URI' not in col]]
-            write_df(df, f'{output_tables_dir}/{file}')
+                df = df[[col for col in df.columns if '__URI' not in col]]
+                _write_df(df, f'{output_tables_dir}/{entry.name}')
 
-    json.dump(sameas_dict, open('dbp_sameas.json', 'w'), indent=4)
-    write_df(pd.DataFrame(annotations)[['tab_id', 'col_id', 'row_id', 'entity']], f'{output_gs_dir}/cea_gs.csv',
-             header=False)
-    write_df(pd.DataFrame(ext_annotations)[['tab_id', 'col_id', 'row_id', 'entity']], f'{output_gs_dir}/cea_gs_EXT.csv',
-             header=False)
+            json.dump(sameas_dict, open('dbp_sameas.json', 'w'), indent=4)
+    # _write_df(pd.DataFrame(annotations)[['tab_id', 'col_id', 'row_id', 'entity']], f'{output_gs_dir}/2T_gt_no_sameas.csv',
+    #           header=False)
+    _write_df(pd.DataFrame(ext_annotations)[['tab_id', 'col_id', 'row_id', 'entity']],
+              f'{output_gs_dir}/2T_gt.csv',
+              header=False)
 
 
 def to_mantis_format(gs_dir, tables_dir, tables_list_file):
     tables = []
-    for currentpath, _, files in os.walk(gs_dir):
-        for file in files:
-            logger.info(f'Processing file: {currentpath}/{file}')
-            df = pd.read_csv(f'{currentpath}/{file}', dtype=object)
-            df.to_json(f'{tables_dir}/{file.replace(".csv", ".json")}', orient='records')
-            tables.append(file.replace(".csv", ""))
+    with os.scandir(gs_dir) as it:
+        for entry in it:
+            if entry.name.endswith(".csv") and entry.is_file():
+                logger.info(f'Processing file: {entry.path}')
+                df = pd.read_csv(entry.path, dtype=object)
+                df.to_json(f'{tables_dir}/{entry.name.replace(".csv", ".json")}', orient='records')
+                tables.append(entry.name.replace(".csv", ""))
     if tables_list_file:
         logger.info(f'Dumping the list of tables into a JSON file...')
         json.dump(tables, open(tables_list_file, "w"), indent=4)
@@ -436,7 +445,18 @@ def to_idlab_format(cea_gs_file, output_dir):
         ['filename', 'col_id', 'row_id']]
     for f, df in list(cea_gs.groupby('filename')):
         df['target'] = "cell"
-        write_df(df[['target', 'col_id', 'row_id']], f'{output_dir}/{f}.csv', header=False)
+        _write_df(df[['target', 'col_id', 'row_id']], f'{output_dir}/{f}.csv', header=False)
+
+
+def make(output_folder, endpoint):
+    sparql_to_gs('control/query', output_folder, endpoint, prefix='CTRL_')
+    wiki_to_gs('control/wiki', output_folder, endpoint, prefix='CTRL_')
+    sparql_to_gs('web/homonyms/queries', output_folder, endpoint, prefix='TOUGH_', suffix='_HOMO')
+    web_to_gs('web/homonyms', output_folder, prefix='TOUGH_', suffix='_HOMO')
+    t2d_to_gs('web/t2d', output_folder, endpoint, prefix='TOUGH_')
+    web_to_gs('web/misspelled', output_folder, prefix='TOUGH_', suffix='_MISSP')
+    web_to_gs('web/open_data', output_folder, prefix='TOUGH_', suffix='_OD')
+    _check_uris(output_folder)
 
 
 if __name__ == '__main__':
@@ -457,9 +477,9 @@ if __name__ == '__main__':
     web_argparser = subparsers.add_parser("web", help='Transform Web tables.')
     web_argparser.set_defaults(action='web')
     web_argparser.add_argument('--input_folder', type=str, default='./web',
-                                help='Path to the folder containing Web tables. DEFAULT: ./web')
+                               help='Path to the folder containing Web tables. DEFAULT: ./web')
     web_argparser.add_argument('--output_folder', type=str, default='./gs',
-                                help='Path to output folder. DEFAULT: ./gs')
+                               help='Path to output folder. DEFAULT: ./gs')
 
     dbp_argparser = subparsers.add_parser("dbp", help='Create tables from DBpedia SPARQL queries.')
     dbp_argparser.set_defaults(action='dbp')
@@ -482,7 +502,7 @@ if __name__ == '__main__':
     check_argparser.add_argument('--input_folder', type=str, default='./gs',
                                  help='Path to the folder containing tables. DEFAULT: ./gs')
 
-    stats_argparser = subparsers.add_parser("stats", help='Print stats about the GT.')
+    stats_argparser = subparsers.add_parser("stats", help='Print stats about the GS.')
     stats_argparser.set_defaults(action='stats')
     stats_argparser.add_argument('--input_folder', type=str, default='./gs',
                                  help='Path to the folder containing tables. DEFAULT: ./gs')
@@ -491,10 +511,10 @@ if __name__ == '__main__':
     to_cea_argparser.set_defaults(action='to_cea')
     to_cea_argparser.add_argument('--input_folder', type=str, default='./gs',
                                   help='Path to the folder containing GS tables DEFAULT: ./gs')
-    to_cea_argparser.add_argument('--output_tables_folder', type=str, default='./cea_gs/tables',
-                                  help='Path to output folder for tables. DEFAULT: ./cea_gs/tables')
-    to_cea_argparser.add_argument('--output_gs_folder', type=str, default='./cea_gs',
-                                  help='Path to output folder for gold standard files. DEFAULT: ./cea_gs')
+    to_cea_argparser.add_argument('--output_tables_folder', type=str, default='./2T_cea/tables',
+                                  help='Path to output folder for tables. DEFAULT: ./2T_cea/tables')
+    to_cea_argparser.add_argument('--output_gs_folder', type=str, default='./2T_cea',
+                                  help='Path to output folder for gold standard files. DEFAULT: ./2T_cea')
     to_cea_argparser.add_argument('--endpoint', type=str, default=SPARQL_ENDPOINT,
                                   help=f'SPARQL endpoint. DEFAULT: {SPARQL_ENDPOINT}')
     to_cea_argparser.add_argument('--sameas_file', type=str, default=None,
@@ -502,8 +522,8 @@ if __name__ == '__main__':
 
     to_mantis_argparser = subparsers.add_parser("to_mantis", help='Convert GS tables to Mantistable format.')
     to_mantis_argparser.set_defaults(action='to_mantis')
-    to_mantis_argparser.add_argument('--input_folder', type=str, default='./cea_gs/tables',
-                                     help='Path to the folder containing GS tables. DEFAULT: ./cea_gs/tables')
+    to_mantis_argparser.add_argument('--input_folder', type=str, default='./2T_cea/tables',
+                                     help='Path to the folder containing GS tables. DEFAULT: ./2T_cea/tables')
     to_mantis_argparser.add_argument('--tables_folder', type=str, help='Path to Mantistable folder.')
     to_mantis_argparser.add_argument('--tables_list_file', type=str, default=None,
                                      help='File to store the list of tables to be imported. DEFAULT: None')
@@ -526,6 +546,13 @@ if __name__ == '__main__':
     scorer_argparser.add_argument('--remove_unseen', action='store_true',
                                   help='Remove unseen tables from the evaluation.')
 
+    make_argparser = subparsers.add_parser("make", help='Automatic script for getting a new GS from all the tables.')
+    make_argparser.set_defaults(action='make')
+    make_argparser.add_argument('--output_folder', type=str, default='./gs',
+                                help='Path to output folder for gold standard tables. DEFAULT: ./gs')
+    make_argparser.add_argument('--endpoint', type=str, default=SPARQL_ENDPOINT,
+                                help=f'SPARQL endpoint. DEFAULT: {SPARQL_ENDPOINT}')
+
     args = argparser.parse_args()
 
     logger = logging.getLogger('em_gs')
@@ -541,7 +568,7 @@ if __name__ == '__main__':
         elif args.action == 't2d':
             t2d_to_gs(args.input_folder, args.output_folder, args.endpoint)
         elif args.action == 'check':
-            check_uris(args.input_folder)
+            _check_uris(args.input_folder)
         elif args.action == 'stats':
             gt_stats(args.input_folder)
         elif args.action == 'to_cea':
@@ -555,5 +582,8 @@ if __name__ == '__main__':
             print(json.dumps(
                 compute_score(args.gs_file, args.annotations_file, args.tables_folder, args.wrong_cells_file,
                               args.remove_unseen), indent=4))
+        elif args.action == 'make':
+            make(args.output_folder, args.endpoint)
+
     else:
         argparser.print_help()

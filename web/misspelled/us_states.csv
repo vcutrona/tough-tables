@@ -1,4 +1,4 @@
-"Country","Country__URI","Misspelled Country","Misspelled Country__URI"
+"Country","Country__URI","Country_misspelled","Country_misspelled__URI"
 "Alabama","http://dbpedia.org/resource/Alabama_(state)","Allabama","http://dbpedia.org/resource/Alabama_(state)"
 "Alabama","http://dbpedia.org/resource/Alabama_(state)","Alabamma","http://dbpedia.org/resource/Alabama_(state)"
 "Alaska","http://dbpedia.org/resource/Alaska_(state)","Alsaka","http://dbpedia.org/resource/Alaska_(state)"
