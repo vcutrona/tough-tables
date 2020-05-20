@@ -1,0 +1,26 @@
+SELECT distinct SAMPLE(?player) AS ?player ?player__URI SAMPLE(strbefore(?team, "(")) as ?team ?team__URI WHERE {
+  ?player__URI foaf:name ?player .
+  ?team__URI rdfs:label ?team .
+  {
+    SELECT ?player__URI ?team__URI WHERE {
+      ?dis_player dbo:wikiPageDisambiguates ?player__URI .
+      ?player__URI a dbo:SoccerPlayer ;
+                   dbo:team ?team__URI ;
+                   foaf:name ?player .
+
+      ?dis_team dbo:wikiPageDisambiguates ?team__URI .
+      ?team__URI a dbo:SoccerClub ;
+                 rdfs:label ?team .
+
+      FILTER regex(str(?player__URI), "_\\(")
+      FILTER regex(str(?team__URI), "_\\(|,_")
+      FILTER (LANG(?player) = 'en' || LANG(?player) = '')
+      FILTER (LANG(?team) = 'en' || LANG(?team) = '')
+    }
+    group by ?player__URI ?team__URI
+    having (count(*) = 1)
+  }
+  FILTER (LANG(?player) = 'en' || LANG(?player) = '')
+  FILTER (LANG(?team) = 'en' || LANG(?team) = '')
+  FILTER (STR(strbefore(?team, "(")) != '')
+}

@@ -1,0 +1,34 @@
+SELECT distinct SAMPLE(?player) AS ?player ?player__URI SAMPLE(strbefore(?team, "(")) as ?team ?team__URI WHERE {
+  ?player__URI foaf:name ?player ;
+               a ?type .
+  ?team__URI rdfs:label ?team .
+  {
+    SELECT ?player__URI ?team__URI WHERE {
+      ?dis_player dbo:wikiPageDisambiguates ?player__URI .
+      ?player__URI a dbo:Athlete ;
+                   dbo:team ?team__URI ;
+                   foaf:name ?player .
+
+      ?dis_team dbo:wikiPageDisambiguates ?team__URI .
+      ?team__URI a dbo:SportsTeam ;
+                 rdfs:label ?team .
+
+      FILTER regex(str(?player__URI), "_\\(")
+      FILTER regex(str(?team__URI), "_\\(|,_")
+      FILTER (LANG(?player) = 'en' || LANG(?player) = '')
+      FILTER (LANG(?team) = 'en' || LANG(?team) = '')
+    }
+    group by ?player__URI ?team__URI
+    having (count(*) = 1)
+  }
+  FILTER (LANG(?player) = 'en' || LANG(?player) = '')
+  FILTER (LANG(?team) = 'en' || LANG(?team) = '')
+  FILTER (STR(strbefore(?team, "(")) != '')
+  FILTER (strStarts(str(?type), "http://dbpedia.org/ontology/"))
+  FILTER NOT EXISTS {
+    ?subtype ^a  ?player__URI ;
+             rdfs:subClassOf ?type .
+    FILTER ( ?subtype != ?type )
+  }
+}
+ORDER BY ?type

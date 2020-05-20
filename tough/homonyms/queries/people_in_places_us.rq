@@ -1,0 +1,45 @@
+SELECT distinct ?name ?name__URI str(xsd:date(?birthDate)) as ?birthDate STRBEFORE(?birthPlace, ",") as ?birthPlace ?birthPlace__URI ?region ?region__URI ?country ?country__URI WHERE {
+  ?name__URI dbo:birthDate ?birthDate ;
+             foaf:name ?name .
+  ?birthPlace__URI rdfs:label ?birthPlace .
+  ?region__URI rdfs:label ?region .
+  ?country__URI rdfs:label ?country .
+
+  {
+    SELECT ?name__URI str(xsd:date(?birthDate)) ?birthPlace__URI ?region__URI ?country__URI WHERE {
+      ?dis_person dbo:wikiPageDisambiguates ?name__URI .
+      ?name__URI a dbo:Person ;
+                   dbo:birthPlace ?birthPlace__URI ;
+                   dbo:birthDate ?birthDate ;
+                   foaf:name ?name .
+
+      ?dis_city dbo:wikiPageDisambiguates ?birthPlace__URI .
+      ?birthPlace__URI a dbo:City ;
+                 dbo:isPartOf ?region__URI ;
+                 rdfs:label ?birthPlace .
+      ?region__URI a dbo:Region;
+                   dbo:country ?country__URI;
+                   rdfs:label ?region .
+      ?country__URI a dbo:Country;
+                    rdfs:label ?country .
+    
+      FILTER regex(str(?name__URI), "_\\(")
+      FILTER regex(str(?birthPlace__URI), "_\\(|,_")
+      FILTER (LANG(?name) = 'en' || LANG(?name) = '')
+      FILTER (LANG(?birthPlace) = 'en' || LANG(?birthPlace) = '')
+      FILTER (LANG(?country) = 'en' || LANG(?country) = '')
+      FILTER (LANG(?region) = 'en' || LANG(?region) = '')
+      FILTER (str(xsd:date(?birthDate)) != '')
+      FILTER (?country__URI IN (<http://dbpedia.org/resource/United_States>))
+    }
+    group by ?name__URI str(xsd:date(?birthDate)) ?birthPlace__URI ?region__URI ?country__URI
+    having (count(*) = 1)
+  }
+  FILTER regex(str(?name__URI), "_\\(")
+  FILTER regex(str(?birthPlace__URI), "_\\(|,_")
+  FILTER (LANG(?name) = 'en' || LANG(?name) = '')
+  FILTER (LANG(?birthPlace) = 'en' || LANG(?birthPlace) = '')
+  FILTER (LANG(?region) = 'en' || LANG(?region) = '')
+  FILTER (LANG(?country) = 'en' || LANG(?country) = '')
+  FILTER (str(xsd:date(?birthDate)) != '')
+}
