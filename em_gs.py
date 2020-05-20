@@ -147,7 +147,9 @@ def gt_stats(folder):
 def wiki_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
     with os.scandir(input_dir) as it:
         for entry in it:
-            if entry.name.endswith(".csv") and entry.is_file():
+            if os.path.isfile(f'{output_dir}/{prefix}WIKI_{suffix}{entry.name}'):
+                logger.info(f'Skipping file: {entry.path} - {output_dir}/{prefix}WIKI_{suffix}{entry.name} already exists.')
+            elif entry.name.endswith(".csv") and entry.is_file():
                 logger.info(f'Processing file: {entry.path}')
                 df = pd.read_csv(entry.path, dtype=object)
                 for col in df.columns:
@@ -165,7 +167,9 @@ def wiki_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
 def web_to_gs(input_dir, output_dir, prefix='', suffix=''):
     with os.scandir(input_dir) as it:
         for entry in it:
-            if entry.name.endswith(".csv") and entry.is_file():
+            if os.path.isfile(f'{output_dir}/{prefix}WEB{suffix}_{entry.name}'):
+                logger.info(f'Skipping file: {entry.path} - {output_dir}/{prefix}WEB{suffix}_{entry.name} already exists.')
+            elif entry.name.endswith(".csv") and entry.is_file():
                 logger.info(f'Processing file: {entry.path}')
                 df = pd.read_csv(entry.path, dtype=object)
                 _write_df(df, f'{output_dir}/{prefix}WEB{suffix}_{entry.name}')
@@ -174,7 +178,9 @@ def web_to_gs(input_dir, output_dir, prefix='', suffix=''):
 def sparql_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
     with os.scandir(input_dir) as it:
         for entry in it:
-            if entry.name.endswith(".rq") and entry.is_file():
+            if os.path.isfile(f'{output_dir}/{prefix}DBP{suffix}_{entry.name.replace(".rq", ".csv")}'):
+                logger.info(f'Skipping file: {entry.path} - {output_dir}/{prefix}DBP{suffix}_{entry.name.replace(".rq", ".csv")} already exists.')
+            elif entry.name.endswith(".rq") and entry.is_file():
                 logger.info(f'Processing file: {entry.path}')
                 with open(f'{output_dir}/{prefix}DBP{suffix}_{entry.name.replace(".rq", ".csv")}', 'wb') as out:
                     out.write(_sparql_exec(open(entry.path, 'r').read(), endpoint))
@@ -183,7 +189,9 @@ def sparql_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
 def t2d_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
     with os.scandir(input_dir) as it:
         for entry in it:
-            if entry.name.endswith(".csv") and entry.is_file():
+            if os.path.isfile(f'{output_dir}/{prefix}T2D{suffix}_{entry.name}'):
+                logger.info(f'Skipping file: {entry.path} - {output_dir}/{prefix}T2D{suffix}_{entry.name} already exists.')
+            elif entry.name.endswith(".csv") and entry.is_file():
                 logger.info(f'Processing file: {entry.path}')
                 df = pd.read_csv(entry.path, dtype=object)
                 for col in df.columns:
@@ -419,8 +427,6 @@ def to_cea_format(input_dir, output_tables_dir, output_gs_dir, endpoint, sameas_
                 _write_df(df, f'{output_tables_dir}/{entry.name}')
 
             json.dump(sameas_dict, open('dbp_sameas.json', 'w'), indent=4)
-    # _write_df(pd.DataFrame(annotations)[['tab_id', 'col_id', 'row_id', 'entity']], f'{output_gs_dir}/2T_gt_no_sameas.csv',
-    #           header=False)
     _write_df(pd.DataFrame(ext_annotations)[['tab_id', 'col_id', 'row_id', 'entity']],
               f'{output_gs_dir}/2T_gt.csv',
               header=False)
@@ -451,11 +457,11 @@ def to_idlab_format(cea_gs_file, output_dir):
 def make(output_folder, endpoint):
     sparql_to_gs('control/query', output_folder, endpoint, prefix='CTRL_')
     wiki_to_gs('control/wiki', output_folder, endpoint, prefix='CTRL_')
-    sparql_to_gs('web/homonyms/queries', output_folder, endpoint, prefix='TOUGH_', suffix='_HOMO')
-    web_to_gs('web/homonyms', output_folder, prefix='TOUGH_', suffix='_HOMO')
-    t2d_to_gs('web/t2d', output_folder, endpoint, prefix='TOUGH_')
-    web_to_gs('web/misspelled', output_folder, prefix='TOUGH_', suffix='_MISSP')
-    web_to_gs('web/open_data', output_folder, prefix='TOUGH_', suffix='_OD')
+    sparql_to_gs('tough/homonyms/queries', output_folder, endpoint, prefix='TOUGH_', suffix='_HOMO')
+    web_to_gs('tough/homonyms', output_folder, prefix='TOUGH_', suffix='_HOMO')
+    t2d_to_gs('tough/t2d', output_folder, endpoint, prefix='TOUGH_')
+    web_to_gs('tough/misspelled', output_folder, prefix='TOUGH_', suffix='_MISSP')
+    web_to_gs('tough/open_data', output_folder, prefix='TOUGH_', suffix='_OD')
     _check_uris(output_folder)
 
 
