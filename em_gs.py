@@ -24,7 +24,6 @@ def _write_df(df, filename, drop=True, strip=True, index=False, header=True, quo
     if strip:
         df = df.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
     df.to_csv(filename, index=index, header=header, quoting=quoting)
-        df.to_csv(filename, index=index, header=header, quoting=quoting)
 
 
 def to_dbp_uri(uri, endpoint):
@@ -391,6 +390,30 @@ def remove_duplicates_from_gs(input_dir):
                 # remove duplicates without considering __URI cols
                 df = df[~df[[col for col in df.columns if '__URI' not in col]].duplicated()]
                 _write_df(df, entry.path)
+
+
+def noise_1(input_dir, output_dir):
+    with os.scandir(input_dir) as it:
+        for entry in it:
+            if entry.name.endswith(".csv") and 'MISSP' in entry.name and entry.is_file():
+                df = pd.read_csv(entry.path, dtype=object)
+                msp_col = [x for x in df.columns if x.endswith('_misspelled')][0]
+                pure_col = msp_col.replace("_misspelled", "")
+                for i in np.arange(0.0, 1.0, 0.1):
+                    i = round(float(i), 2)
+
+                    msk = np.random.rand(len(df)) < i
+
+                    corrupted = df[msk]
+                    pure = df[~msk]
+
+                    corrupted = corrupted.drop(columns=[pure_col, f'{pure_col}__URI'])
+                    pure = pure.drop(columns=[msp_col, f'{msp_col}__URI'])
+
+                    corrupted.columns = [x.replace("_misspelled", "") for x in corrupted.columns]
+
+                    noisy_df = pd.concat([corrupted, pure])
+                    _write_df(noisy_df, f'{output_dir}/{entry.name[:-4]}_NOISE1_{str(i)}.csv')
 
 
 def to_cea_format(input_dir, output_tables_dir, output_gs_dir, endpoint, sameas_file):

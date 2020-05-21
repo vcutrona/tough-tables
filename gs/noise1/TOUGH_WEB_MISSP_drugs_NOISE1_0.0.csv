@@ -1,0 +1,6 @@
+"Medicine","Medicine__URI","Trade","Trade__URI","ATC Code","Route of administration","Route of administration__URI"
+"acetaminophen","http://dbpedia.org/resource/Paracetamol","Tylenol","http://dbpedia.org/resource/Tylenol_(brand)","N02BE01","Rectal","http://dbpedia.org/resource/Rectal_administration"
+"aspirin","http://dbpedia.org/resource/Aspirin","Bayer Aspirin","http://dbpedia.org/resource/Bayer","A01AD05","By mouth","http://dbpedia.org/resource/Oral_administration"
+"ibuprofen","http://dbpedia.org/resource/Ibuprofen","Advil","http://dbpedia.org/resource/Advil","C01EB16","Intravenous","http://dbpedia.org/resource/Intravenous_therapy"
+"naproxen","http://dbpedia.org/resource/Naproxen","Anaprox","http://dbpedia.org/resource/Anaprox","G02CC02","By mouth","http://dbpedia.org/resource/Oral_administration"
+"sertraline","http://dbpedia.org/resource/Sertraline","Zoloft","http://dbpedia.org/resource/Zoloft","N06AB06","By mouth","http://dbpedia.org/resource/Oral_administration"
