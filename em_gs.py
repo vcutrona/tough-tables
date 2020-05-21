@@ -524,6 +524,8 @@ def make_gs(output_folder, endpoint):
     web_to_gs('tough/misspelled', output_folder, prefix='TOUGH_', suffix='_MISSP')
     web_to_gs('tough/open_data', output_folder, prefix='TOUGH_', suffix='_OD')
     _check_uris(output_folder)
+    noise_1(output_folder, output_folder)
+    noise_2(output_folder, output_folder)
     remove_duplicates_from_gs(output_folder)
 
 
