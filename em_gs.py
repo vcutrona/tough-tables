@@ -21,9 +21,9 @@ TABLE_TYPES = ['DBP', 'WIKI', 'WEB', 'T2D']
 def _write_df(df, filename, drop=True, strip=True, index=False, header=True, quoting=csv.QUOTE_ALL):
     if drop:
         df = df.drop_duplicates()
-        if strip:
-            for col in df.columns:
-                df[col] = df[col].str.strip()
+    if strip:
+        df = df.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
+    df.to_csv(filename, index=index, header=header, quoting=quoting)
         df.to_csv(filename, index=index, header=header, quoting=quoting)
 
 
@@ -382,6 +382,17 @@ def _get_sameas(uri, endpoint):
     return list(filter(lambda x: 'http://dbpedia.org' in x, list(sameas)))
 
 
+def remove_duplicates_from_gs(input_dir):
+    with os.scandir(input_dir) as it:
+        for entry in it:
+            if entry.name.endswith(".csv") and entry.is_file():
+                df = pd.read_csv(entry.path, dtype=object)
+
+                # remove duplicates without considering __URI cols
+                df = df[~df[[col for col in df.columns if '__URI' not in col]].duplicated()]
+                _write_df(df, entry.path)
+
+
 def to_cea_format(input_dir, output_tables_dir, output_gs_dir, endpoint, sameas_file):
     if sameas_file is None:
         logger.warning(f'SameAs file not provided. Queries to DBpedia could take some time.')
@@ -454,7 +465,7 @@ def to_idlab_format(cea_gs_file, output_dir):
         _write_df(df[['target', 'col_id', 'row_id']], f'{output_dir}/{f}.csv', header=False)
 
 
-def make(output_folder, endpoint):
+def make_gs(output_folder, endpoint):
     sparql_to_gs('control/query', output_folder, endpoint, prefix='CTRL_')
     wiki_to_gs('control/wiki', output_folder, endpoint, prefix='CTRL_')
     sparql_to_gs('tough/homonyms/queries', output_folder, endpoint, prefix='TOUGH_', suffix='_HOMO')
@@ -463,6 +474,7 @@ def make(output_folder, endpoint):
     web_to_gs('tough/misspelled', output_folder, prefix='TOUGH_', suffix='_MISSP')
     web_to_gs('tough/open_data', output_folder, prefix='TOUGH_', suffix='_OD')
     _check_uris(output_folder)
+    remove_duplicates_from_gs(output_folder)
 
 
 if __name__ == '__main__':
@@ -552,11 +564,11 @@ if __name__ == '__main__':
     scorer_argparser.add_argument('--remove_unseen', action='store_true',
                                   help='Remove unseen tables from the evaluation.')
 
-    make_argparser = subparsers.add_parser("make", help='Automatic script for getting a new GS from all the tables.')
-    make_argparser.set_defaults(action='make')
-    make_argparser.add_argument('--output_folder', type=str, default='./gs',
+    make_gs_argparser = subparsers.add_parser("make_gs", help='Automatic script for getting a new GS from all the tables.')
+    make_gs_argparser.set_defaults(action='make_gs')
+    make_gs_argparser.add_argument('--output_folder', type=str, default='./gs',
                                 help='Path to output folder for gold standard tables. DEFAULT: ./gs')
-    make_argparser.add_argument('--endpoint', type=str, default=SPARQL_ENDPOINT,
+    make_gs_argparser.add_argument('--endpoint', type=str, default=SPARQL_ENDPOINT,
                                 help=f'SPARQL endpoint. DEFAULT: {SPARQL_ENDPOINT}')
 
     args = argparser.parse_args()
@@ -588,8 +600,8 @@ if __name__ == '__main__':
             print(json.dumps(
                 compute_score(args.gs_file, args.annotations_file, args.tables_folder, args.wrong_cells_file,
                               args.remove_unseen), indent=4))
-        elif args.action == 'make':
-            make(args.output_folder, args.endpoint)
+        elif args.action == 'make_gs':
+            make_gs(args.output_folder, args.endpoint)
 
     else:
         argparser.print_help()
