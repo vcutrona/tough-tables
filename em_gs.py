@@ -18,7 +18,7 @@ from SPARQLWrapper import SPARQLWrapper, CSV
 SPARQL_ENDPOINT = 'http://dbpedia.org/sparql'
 TABLE_CAT_TYPE = {
     'ALL': [''],
-    'CTRL': ['DBP', 'WIKI'],
+    'CTRL': ['DBP', 'WIKI', 'NOISE2'],
     'TOUGH': ['T2D', 'DBP', 'SORTED', 'HOMO', 'OD', 'MISSP', 'NOISE1', 'NOISE2']}
 
 random.seed(42)
