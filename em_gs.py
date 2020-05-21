@@ -1,21 +1,24 @@
 # coding: utf-8
 
-from statistics import mean, stdev
-import pandas as pd
-import os
-import urllib.parse
-import numpy as np
-import csv
 import argparse
+import csv
 import json
 import logging
-
+import os
+import random
+import urllib.parse
 from datetime import datetime
+from statistics import mean, stdev
+
+import numpy as np
+import pandas as pd
 from SPARQLTransformer import sparqlTransformer
 from SPARQLWrapper import SPARQLWrapper, CSV
 
 SPARQL_ENDPOINT = 'http://dbpedia.org/sparql'
 TABLE_TYPES = ['DBP', 'WIKI', 'WEB', 'T2D']
+
+random.seed(42)
 
 
 def _write_df(df, filename, drop=True, strip=True, index=False, header=True, quoting=csv.QUOTE_ALL):
@@ -414,6 +417,30 @@ def noise_1(input_dir, output_dir):
 
                     noisy_df = pd.concat([corrupted, pure])
                     _write_df(noisy_df, f'{output_dir}/{entry.name[:-4]}_NOISE1_{str(i)}.csv')
+
+
+def random_noise(x):
+    if x is not np.nan and not x.isnumeric():
+        rnd = random.random()
+        if rnd > 0.8 and len(x) > 1:  # duplicate a random char
+            rnd_posix = random.randint(1, len(x) - 1)
+            x = x[:rnd_posix] + x[:rnd_posix][-1] + x[rnd_posix:]
+        elif rnd > 0.3:  # duplicate last letter:
+            x = x + x[-1]
+        # else -> return the string as is with no intervention
+    return x
+
+
+def noise_2(input_dir, output_dir):
+    with os.scandir(input_dir) as it:
+        for entry in it:
+            if entry.name.endswith(".csv") and entry.is_file():
+                df = pd.read_csv(entry.path, dtype=object)
+                target_cols = [x for x in df.columns if f'{x}__URI' in df.columns]
+                target_cols = random.choices(target_cols, k=random.randrange(len(target_cols)))
+                for col in target_cols:
+                    df[col] = df[col].apply(random_noise)
+                _write_df(df, f'{output_dir}/{entry.name[:-4]}_NOISE2.csv')
 
 
 def to_cea_format(input_dir, output_tables_dir, output_gs_dir, endpoint, sameas_file):
