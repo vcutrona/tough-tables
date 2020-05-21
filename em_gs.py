@@ -16,7 +16,10 @@ from SPARQLTransformer import sparqlTransformer
 from SPARQLWrapper import SPARQLWrapper, CSV
 
 SPARQL_ENDPOINT = 'http://dbpedia.org/sparql'
-TABLE_TYPES = ['DBP', 'WIKI', 'WEB', 'T2D']
+TABLE_CAT_TYPE = {
+    'ALL': [''],
+    'CTRL': ['DBP', 'WIKI'],
+    'TOUGH': ['T2D', 'DBP', 'SORTED', 'HOMO', 'OD', 'MISSP', 'NOISE1', 'NOISE2']}
 
 random.seed(42)
 
@@ -101,48 +104,50 @@ def gt_stats(folder):
                 for col in df.columns:
                     if '__URI' in col:
                         stats[entry.name]['entities'].update(df[col].unique())
-                        stats[entry.name]['annotated_cells'] = stats[entry.name]['annotated_cells'] + df[col].dropna().shape[0]
+                        stats[entry.name]['annotated_cells'] = stats[entry.name]['annotated_cells'] + \
+                                                               df[col].dropna().shape[0]
                         stats[entry.name]['annotated_columns'] = stats[entry.name]['annotated_columns'] + 1
                     else:
                         stats[entry.name]['columns'] = stats[entry.name]['columns'] + 1
                         stats[entry.name]['cells'] = stats[entry.name]['cells'] + df[col].shape[0]
                 stats[entry.name]['entities'] = list(stats[entry.name]['entities'])
 
-    for t_type in ['ALL'] + TABLE_TYPES:
-        if t_type == 'ALL':
-            tmp_stats = stats
-        else:
-            tmp_stats = {k: v for k, v in stats.items() if k.startswith(t_type)}
-        total_tables = len(tmp_stats)
-        rows_lengths = list(map(lambda x: x['rows'], tmp_stats.values()))
-        cols_lengths = list(map(lambda x: x['columns'], tmp_stats.values()))
-        cells_lengths = list(map(lambda x: x['cells'], tmp_stats.values()))
-        ann_cols_lengths = list(map(lambda x: x['annotated_columns'], tmp_stats.values()))
-        ann_cells_lengths = list(map(lambda x: x['annotated_cells'], tmp_stats.values()))
-        distinct_entities_lengths = (list(map(lambda x: len(x['entities']), tmp_stats.values())))
-        distinct_entities = set()
-        for v in tmp_stats.values():
-            distinct_entities.update(v['entities'])
+    for cat in TABLE_CAT_TYPE.keys():
+        for t in TABLE_CAT_TYPE[cat]:
+            if cat == 'ALL':
+                tmp_stats = stats
+            else:
+                tmp_stats = {k: v for k, v in stats.items() if k.startswith(cat) and t in k}
+            total_tables = len(tmp_stats)
+            rows_lengths = list(map(lambda x: x['rows'], tmp_stats.values()))
+            cols_lengths = list(map(lambda x: x['columns'], tmp_stats.values()))
+            cells_lengths = list(map(lambda x: x['cells'], tmp_stats.values()))
+            ann_cols_lengths = list(map(lambda x: x['annotated_columns'], tmp_stats.values()))
+            ann_cells_lengths = list(map(lambda x: x['annotated_cells'], tmp_stats.values()))
+            distinct_entities_lengths = (list(map(lambda x: len(x['entities']), tmp_stats.values())))
+            distinct_entities = set()
+            for v in tmp_stats.values():
+                distinct_entities.update(v['entities'])
 
-        print(t_type)
-        print('total tables:', total_tables)
+            print(cat, t)
+            print('total tables:', total_tables)
 
-        funcs = [mean, stdev, sum, min, max]
-        print('Avg. Rows # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
-              % tuple([f(rows_lengths) for f in funcs]))
-        print('Avg. Cols # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
-              % tuple([f(cols_lengths) for f in funcs]))
-        print('Avg. Cells # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
-              % tuple([f(cells_lengths) for f in funcs]))
-        print('Avg. Columns with target cells # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
-              % tuple([f(ann_cols_lengths) for f in funcs]))
-        print('Avg. Target Cells # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
-              % tuple([f(ann_cells_lengths) for f in funcs]))
-        s = list([f(distinct_entities_lengths) for f in funcs])
-        s[2] = len(distinct_entities)
-        print('Avg. Entities # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
-              % tuple(s))
-        print("---")
+            funcs = [mean, stdev, sum, min, max]
+            print('Avg. Rows # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
+                  % tuple([f(rows_lengths) for f in funcs]))
+            print('Avg. Cols # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
+                  % tuple([f(cols_lengths) for f in funcs]))
+            print('Avg. Cells # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
+                  % tuple([f(cells_lengths) for f in funcs]))
+            print('Avg. Columns with target cells # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
+                  % tuple([f(ann_cols_lengths) for f in funcs]))
+            print('Avg. Target Cells # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
+                  % tuple([f(ann_cells_lengths) for f in funcs]))
+            s = list([f(distinct_entities_lengths) for f in funcs])
+            s[2] = len(distinct_entities)
+            print('Avg. Entities # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
+                  % tuple(s))
+            print("---")
     return stats
 
 
@@ -150,7 +155,8 @@ def wiki_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
     with os.scandir(input_dir) as it:
         for entry in it:
             if os.path.isfile(f'{output_dir}/{prefix}WIKI_{suffix}{entry.name}'):
-                logger.info(f'Skipping file: {entry.path} - {output_dir}/{prefix}WIKI_{suffix}{entry.name} already exists.')
+                logger.info(
+                    f'Skipping file: {entry.path} - {output_dir}/{prefix}WIKI_{suffix}{entry.name} already exists.')
             elif entry.name.endswith(".csv") and entry.is_file():
                 logger.info(f'Processing file: {entry.path}')
                 df = pd.read_csv(entry.path, dtype=object)
@@ -170,7 +176,8 @@ def web_to_gs(input_dir, output_dir, prefix='', suffix=''):
     with os.scandir(input_dir) as it:
         for entry in it:
             if os.path.isfile(f'{output_dir}/{prefix}WEB{suffix}_{entry.name}'):
-                logger.info(f'Skipping file: {entry.path} - {output_dir}/{prefix}WEB{suffix}_{entry.name} already exists.')
+                logger.info(
+                    f'Skipping file: {entry.path} - {output_dir}/{prefix}WEB{suffix}_{entry.name} already exists.')
             elif entry.name.endswith(".csv") and entry.is_file():
                 logger.info(f'Processing file: {entry.path}')
                 df = pd.read_csv(entry.path, dtype=object)
@@ -181,7 +188,8 @@ def sparql_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
     with os.scandir(input_dir) as it:
         for entry in it:
             if os.path.isfile(f'{output_dir}/{prefix}DBP{suffix}_{entry.name.replace(".rq", ".csv")}'):
-                logger.info(f'Skipping file: {entry.path} - {output_dir}/{prefix}DBP{suffix}_{entry.name.replace(".rq", ".csv")} already exists.')
+                logger.info(
+                    f'Skipping file: {entry.path} - {output_dir}/{prefix}DBP{suffix}_{entry.name.replace(".rq", ".csv")} already exists.')
             elif entry.name.endswith(".rq") and entry.is_file():
                 logger.info(f'Processing file: {entry.path}')
                 with open(f'{output_dir}/{prefix}DBP{suffix}_{entry.name.replace(".rq", ".csv")}', 'wb') as out:
@@ -192,7 +200,8 @@ def t2d_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
     with os.scandir(input_dir) as it:
         for entry in it:
             if os.path.isfile(f'{output_dir}/{prefix}T2D{suffix}_{entry.name}'):
-                logger.info(f'Skipping file: {entry.path} - {output_dir}/{prefix}T2D{suffix}_{entry.name} already exists.')
+                logger.info(
+                    f'Skipping file: {entry.path} - {output_dir}/{prefix}T2D{suffix}_{entry.name} already exists.')
             elif entry.name.endswith(".csv") and entry.is_file():
                 logger.info(f'Processing file: {entry.path}')
                 df = pd.read_csv(entry.path, dtype=object)
@@ -278,29 +287,35 @@ def compute_score(gs_file, submission_file, tables_folder, wrong_cells_file, rem
                     'actual': row['entity'],
                     'target': " ".join(gt_cell_ent_orig[cell])
                 })
-    precision = precision_score(correct_cells, annotated_cells)
-    recall = recall_score(correct_cells, gt_cell_ent)
-    f1 = f1_score(precision, recall)
+    # precision = precision_score(correct_cells, annotated_cells)
+    # recall = recall_score(correct_cells, gt_cell_ent)
+    # f1 = f1_score(precision, recall)
+    #
+    # scores['ALL'] = {
+    #     'precision': precision,
+    #     'recall': recall,
+    #     'f1': f1
+    # }
 
-    scores['ALL'] = {
-        'precision': precision,
-        'recall': recall,
-        'f1': f1
-    }
+    for cat, types in TABLE_CAT_TYPE.items():
+        for t in types:
+            if cat == 'ALL':
+                c_cells = correct_cells
+                a_cells = annotated_cells
+                g_cells = gt_cell_ent
+            else:
+                c_cells = {x for x in correct_cells if x.startswith(cat) and t in x}
+                a_cells = {x for x in annotated_cells if x.startswith(cat) and t in x}
+                g_cells = dict(filter(lambda elem: elem[0].startswith(cat) and t in elem[0], gt_cell_ent.items()))
 
-    for t in TABLE_TYPES:
-        c_cells = {x for x in correct_cells if x.startswith(t)}
-        a_cells = {x for x in annotated_cells if x.startswith(t)}
-        g_cells = dict(filter(lambda elem: elem[0].startswith(t), gt_cell_ent.items()))
-
-        precision = precision_score(c_cells, a_cells)
-        recall = recall_score(c_cells, g_cells)
-        f1 = f1_score(precision, recall)
-        scores[t] = {
-            'precision': precision,
-            'recall': recall,
-            'f1': f1
-        }
+            precision = precision_score(c_cells, a_cells)
+            recall = recall_score(c_cells, g_cells)
+            f1 = f1_score(precision, recall)
+            scores[f'{cat}_{t}'] = {
+                'precision': precision,
+                'recall': recall,
+                'f1': f1
+            }
 
     wcells = pd.DataFrame(data=wrong_cells)
 
@@ -616,12 +631,13 @@ if __name__ == '__main__':
     scorer_argparser.add_argument('--remove_unseen', action='store_true',
                                   help='Remove unseen tables from the evaluation.')
 
-    make_gs_argparser = subparsers.add_parser("make_gs", help='Automatic script for getting a new GS from all the tables.')
+    make_gs_argparser = subparsers.add_parser("make_gs",
+                                              help='Automatic script for getting a new GS from all the tables.')
     make_gs_argparser.set_defaults(action='make_gs')
     make_gs_argparser.add_argument('--output_folder', type=str, default='./gs',
-                                help='Path to output folder for gold standard tables. DEFAULT: ./gs')
+                                   help='Path to output folder for gold standard tables. DEFAULT: ./gs')
     make_gs_argparser.add_argument('--endpoint', type=str, default=SPARQL_ENDPOINT,
-                                help=f'SPARQL endpoint. DEFAULT: {SPARQL_ENDPOINT}')
+                                   help=f'SPARQL endpoint. DEFAULT: {SPARQL_ENDPOINT}')
 
     args = argparser.parse_args()
 
