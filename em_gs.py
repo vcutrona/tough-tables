@@ -9,17 +9,31 @@ import random
 import urllib.parse
 from datetime import datetime
 from statistics import mean, stdev
+import matplotlib.pyplot as plt
+from math import pi
 
 import numpy as np
 import pandas as pd
 from SPARQLTransformer import sparqlTransformer
 from SPARQLWrapper import SPARQLWrapper, CSV
 
+logger = logging.getLogger('em_gs')
+logger.setLevel(logging.INFO)
+
 SPARQL_ENDPOINT = 'http://dbpedia.org/sparql'
-TABLE_CAT_TYPE = {
-    'ALL': [''],
-    'CTRL': ['DBP', 'WIKI', 'NOISE2'],
-    'TOUGH': ['T2D', 'DBP', 'SORTED', 'HOMO', 'OD', 'MISSP', 'NOISE1', 'NOISE2']}
+TABLE_CATEGORIES = {
+    'ALL': ([''], []),
+    'CTRL_WIKI': (['WIKI'], ['NOISE2']),
+    'CTRL_DBP': (['CTRL', 'DBP'], ['NOISE2']),
+    'CTRL_NOISE2': (['CTRL', 'NOISE2'], []),
+    'TOUGH_T2D': (['T2D'], ['NOISE2']),
+    'TOUGH_HOMO': (['HOMO'], ['SORTED', 'NOISE2']),
+    'TOUGH_OD': (['OD'], ['NOISE2']),
+    'TOUGH_MISSP': (['MISSP'], ['NOISE1', 'NOISE2']),
+    'TOUGH_SORTED': (['SORTED'], ['NOISE2']),
+    'TOUGH_NOISE1': (['NOISE1'], []),
+    'TOUGH_NOISE2': (['TOUGH', 'NOISE2'], [])
+}
 
 random.seed(42)
 
@@ -87,6 +101,24 @@ def _check_uris(folder):
                                 logger.error(f"Unvalid URI: {uri}")
 
 
+def _is_table_in_cat(x, include, exclude):
+    b = True
+    for i in include:
+        if not (b and (i in x)):
+            return False
+    for e in exclude:
+        if not (b and (e not in x)):
+            return False
+    return True
+
+
+def _compute_funcs(l):
+    funcs = [mean, stdev, sum, min, max]
+    if len(l) > 1:
+        return tuple([f(l) for f in funcs])
+    return l[0], -1, l[0], l[0], l[0]
+
+
 def gt_stats(folder):
     stats = {}
     with os.scandir(folder) as it:
@@ -112,42 +144,41 @@ def gt_stats(folder):
                         stats[entry.name]['cells'] = stats[entry.name]['cells'] + df[col].shape[0]
                 stats[entry.name]['entities'] = list(stats[entry.name]['entities'])
 
-    for cat in TABLE_CAT_TYPE.keys():
-        for t in TABLE_CAT_TYPE[cat]:
-            if cat == 'ALL':
-                tmp_stats = stats
-            else:
-                tmp_stats = {k: v for k, v in stats.items() if k.startswith(cat) and t in k}
-            total_tables = len(tmp_stats)
-            rows_lengths = list(map(lambda x: x['rows'], tmp_stats.values()))
-            cols_lengths = list(map(lambda x: x['columns'], tmp_stats.values()))
-            cells_lengths = list(map(lambda x: x['cells'], tmp_stats.values()))
-            ann_cols_lengths = list(map(lambda x: x['annotated_columns'], tmp_stats.values()))
-            ann_cells_lengths = list(map(lambda x: x['annotated_cells'], tmp_stats.values()))
-            distinct_entities_lengths = (list(map(lambda x: len(x['entities']), tmp_stats.values())))
-            distinct_entities = set()
-            for v in tmp_stats.values():
-                distinct_entities.update(v['entities'])
+    for cat in TABLE_CATEGORIES:
+        if cat == 'ALL':
+            tmp_stats = stats
+        else:
+            include, exclude = TABLE_CATEGORIES[cat]
+            tmp_stats = {k: v for k, v in stats.items() if _is_table_in_cat(k, include, exclude)}
+        total_tables = len(tmp_stats)
+        rows_lengths = list(map(lambda x: x['rows'], tmp_stats.values()))
+        cols_lengths = list(map(lambda x: x['columns'], tmp_stats.values()))
+        cells_lengths = list(map(lambda x: x['cells'], tmp_stats.values()))
+        ann_cols_lengths = list(map(lambda x: x['annotated_columns'], tmp_stats.values()))
+        ann_cells_lengths = list(map(lambda x: x['annotated_cells'], tmp_stats.values()))
+        distinct_entities_lengths = (list(map(lambda x: len(x['entities']), tmp_stats.values())))
+        distinct_entities = set()
+        for v in tmp_stats.values():
+            distinct_entities.update(v['entities'])
 
-            print(cat, t)
-            print('total tables:', total_tables)
+        print(cat)
+        print('total tables:', total_tables)
 
-            funcs = [mean, stdev, sum, min, max]
-            print('Avg. Rows # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
-                  % tuple([f(rows_lengths) for f in funcs]))
-            print('Avg. Cols # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
-                  % tuple([f(cols_lengths) for f in funcs]))
-            print('Avg. Cells # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
-                  % tuple([f(cells_lengths) for f in funcs]))
-            print('Avg. Columns with target cells # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
-                  % tuple([f(ann_cols_lengths) for f in funcs]))
-            print('Avg. Target Cells # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
-                  % tuple([f(ann_cells_lengths) for f in funcs]))
-            s = list([f(distinct_entities_lengths) for f in funcs])
-            s[2] = len(distinct_entities)
-            print('Avg. Entities # (± Std Dev) <tot, min, max>: %.2f ± %.2f <%d, %d, %d> '
-                  % tuple(s))
-            print("---")
+        print('Avg. Cols # (± Std Dev) <tot, min, max>: %.2f$\\pm$%.2f\\\\ (%d, %d, %d)'
+              % _compute_funcs(cols_lengths))
+        print('Avg. Rows # (± Std Dev) <tot, min, max>: %.2f$\\pm$%.2f\\\\ (%d, %d, %d)'
+              % _compute_funcs(rows_lengths))
+        print('Avg. Cells # (± Std Dev) <tot, min, max>: %.2f$\\pm$%.2f\\\\ (%d, %d, %d)'
+              % _compute_funcs(cells_lengths))
+        print('Avg. Columns with target cells # (± Std Dev) <tot, min, max>: %.2f$\\pm$%.2f\\\\ (%d, %d, %d)'
+              % _compute_funcs(ann_cols_lengths))
+        print('Avg. Target Cells # (± Std Dev) <tot, min, max>: %.2f$\\pm$%.2f\\\\ (%d, %d, %d)'
+              % _compute_funcs(ann_cells_lengths))
+        s = list(_compute_funcs(distinct_entities_lengths))
+        s[2] = len(distinct_entities)
+        print('Avg. Entities # (± Std Dev) <tot, min, max>: %.2f$\\pm$%.2f\\\\ (%d, %d, %d)'
+              % tuple(s))
+        print("---")
     return stats
 
 
@@ -297,21 +328,21 @@ def compute_score(gs_file, submission_file, tables_folder, wrong_cells_file, rem
     #     'f1': f1
     # }
 
-    for cat, types in TABLE_CAT_TYPE.items():
-        for t in types:
-            if cat == 'ALL':
-                c_cells = correct_cells
-                a_cells = annotated_cells
-                g_cells = gt_cell_ent
-            else:
-                c_cells = {x for x in correct_cells if x.startswith(cat) and t in x}
-                a_cells = {x for x in annotated_cells if x.startswith(cat) and t in x}
-                g_cells = dict(filter(lambda elem: elem[0].startswith(cat) and t in elem[0], gt_cell_ent.items()))
-
+    for cat in TABLE_CATEGORIES:
+        if cat == 'ALL':
+            c_cells = correct_cells
+            a_cells = annotated_cells
+            g_cells = gt_cell_ent
+        else:
+            include, exclude = TABLE_CATEGORIES[cat]
+            c_cells = {x for x in correct_cells if _is_table_in_cat(x, include, exclude)}
+            a_cells = {x for x in annotated_cells if _is_table_in_cat(x, include, exclude)}
+            g_cells = dict(filter(lambda elem: _is_table_in_cat(elem[0], include, exclude), gt_cell_ent.items()))
+        if len(g_cells) > 0:
             precision = precision_score(c_cells, a_cells)
             recall = recall_score(c_cells, g_cells)
             f1 = f1_score(precision, recall)
-            scores[f'{cat}_{t}'] = {
+            scores[cat] = {
                 'precision': precision,
                 'recall': recall,
                 'f1': f1
@@ -330,6 +361,40 @@ def compute_score(gs_file, submission_file, tables_folder, wrong_cells_file, rem
 
     if wrong_cells_file:
         _write_df(wcells, wrong_cells_file, strip=False)
+
+    categories = list(scores.keys())
+    N = len(categories)
+    angles = [n / float(N) * 2 * pi for n in range(N)]
+    angles += angles[:1]
+
+    f = plt.figure()
+    ax = plt.subplot(111, polar=True)
+    ax.set_theta_offset(pi / 2)
+    ax.set_theta_direction(-1)
+
+    plt.xticks(angles[:-1], categories)
+    ax.set_rlabel_position(0)
+    plt.yticks([.25, .5, .75], ["0.25", "0.50", "0.75"], color="grey", size=7)
+    plt.ylim(0, 1)
+
+    values = list(map(lambda x: x['f1'], scores.values()))
+    values += values[:1]
+    ax.plot(angles, values, linewidth=1, linestyle='solid', label="f1")
+    ax.fill(angles, values, 'b', alpha=0.1)
+
+    values = list(map(lambda x: x['precision'], scores.values()))
+    values += values[:1]
+    ax.plot(angles, values, linewidth=1, linestyle='solid', label="precision")
+    ax.fill(angles, values, 'r', alpha=0.1)
+
+    values = list(map(lambda x: x['recall'], scores.values()))
+    values += values[:1]
+    ax.plot(angles, values, linewidth=1, linestyle='solid', label="recall")
+    ax.fill(angles, values, 'y', alpha=0.1)
+
+    plt.legend(loc='upper right', bbox_to_anchor=(0.1, 0.1))
+    plt.show()
+    f.savefig(f"{submission_file[:-4]}_score.pdf", bbox_inches='tight')
 
     return scores
 
@@ -545,7 +610,6 @@ def make_gs(output_folder, endpoint):
 
 
 if __name__ == '__main__':
-
     argparser = argparse.ArgumentParser()
 
     subparsers = argparser.add_subparsers(help='commands')
@@ -623,7 +687,8 @@ if __name__ == '__main__':
     scorer_argparser.set_defaults(action='score')
     scorer_argparser.add_argument('--annotations_file', type=str, help='Path to the annotations file (CEA format).')
     scorer_argparser.add_argument('--gs_file', type=str, default='./cea_gs/cea_gs_EXT.csv',
-                                  help='Path to the ground truth file. DEFAULT: ./cea_gs/cea_gs_EXT.csv')
+    scorer_argparser.add_argument('--gs_file', type=str, default='./2T_cea/2T_gt.csv',
+                                  help='Path to the ground truth file. DEFAULT: ./2T_cea/2T_gt.csv')
     scorer_argparser.add_argument('--tables_folder', type=str, default=None,
                                   help='Path to folder with original tables. Provide it only if you want cells content along with wrong annotations. DEFAULT: None')
     scorer_argparser.add_argument('--wrong_cells_file', type=str, default=None,
@@ -640,9 +705,6 @@ if __name__ == '__main__':
                                    help=f'SPARQL endpoint. DEFAULT: {SPARQL_ENDPOINT}')
 
     args = argparser.parse_args()
-
-    logger = logging.getLogger('em_gs')
-    logger.setLevel(logging.INFO)
 
     if "action" in args:
         if args.action == 'wiki':
