@@ -28,7 +28,7 @@ TABLE_CATEGORIES = {
     'CTRL_NOISE2': (['CTRL', 'NOISE2'], []),
     'TOUGH_T2D': (['T2D'], ['NOISE2']),
     'TOUGH_HOMO': (['HOMO'], ['SORTED', 'NOISE2']),
-    'TOUGH_OD': (['OD'], ['NOISE2']),
+    'TOUGH_OTHER': (['OTHER'], ['NOISE2']),
     'TOUGH_MISSP': (['MISSP'], ['NOISE1', 'NOISE2']),
     'TOUGH_SORTED': (['SORTED'], ['NOISE2']),
     'TOUGH_NOISE1': (['NOISE1'], []),
@@ -478,25 +478,31 @@ def remove_duplicates_from_gs(input_dir):
 def noise_1(input_dir, output_dir):
     with os.scandir(input_dir) as it:
         for entry in it:
-            if entry.name.endswith(".csv") and 'MISSP' in entry.name and entry.is_file():
+            if entry.name.endswith(".csv") and 'MISSP' in entry.name and 'NOISE' not in entry.name and entry.is_file():
                 df = pd.read_csv(entry.path, dtype=object)
                 msp_col = [x for x in df.columns if x.endswith('_misspelled')][0]
                 pure_col = msp_col.replace("_misspelled", "")
                 for i in np.arange(0.0, 1.0, 0.1):
                     i = round(float(i), 2)
 
-                    msk = np.random.rand(len(df)) < i
+                    if os.path.isfile(f'{output_dir}/{entry.name[:-4]}_NOISE1_{str(i)}.csv'):
+                        logger.info(
+                            f'Skipping file: {entry.path} - {output_dir}/{entry.name[:-4]}_NOISE1_{str(i)}.csv already exists.')
+                    else:
+                        logger.info(f'Processing file: {entry.path} (noise {i})')
 
-                    corrupted = df[msk]
-                    pure = df[~msk]
+                        msk = np.random.rand(len(df)) < i
 
-                    corrupted = corrupted.drop(columns=[pure_col, f'{pure_col}__URI'])
-                    pure = pure.drop(columns=[msp_col, f'{msp_col}__URI'])
+                        corrupted = df[msk]
+                        pure = df[~msk]
 
-                    corrupted.columns = [x.replace("_misspelled", "") for x in corrupted.columns]
+                        corrupted = corrupted.drop(columns=[pure_col, f'{pure_col}__URI'])
+                        pure = pure.drop(columns=[msp_col, f'{msp_col}__URI'])
 
-                    noisy_df = pd.concat([corrupted, pure])
-                    _write_df(noisy_df, f'{output_dir}/{entry.name[:-4]}_NOISE1_{str(i)}.csv')
+                        corrupted.columns = [x.replace("_misspelled", "") for x in corrupted.columns]
+
+                        noisy_df = pd.concat([corrupted, pure])
+                        _write_df(noisy_df, f'{output_dir}/{entry.name[:-4]}_NOISE1_{str(i)}.csv')
 
 
 def random_noise(x):
@@ -514,7 +520,11 @@ def random_noise(x):
 def noise_2(input_dir, output_dir):
     with os.scandir(input_dir) as it:
         for entry in it:
-            if entry.name.endswith(".csv") and entry.is_file():
+            if os.path.isfile(f'{output_dir}/{entry.name[:-4]}_NOISE2.csv'):
+                logger.info(
+                    f'Skipping file: {entry.path} - {output_dir}/{entry.name[:-4]}_NOISE2.csv already exists.')
+            elif entry.name.endswith(".csv") and entry.is_file() and 'NOISE' not in entry.name:
+                logger.info(f'Processing file: {entry.path} (noise 2)')
                 df = pd.read_csv(entry.path, dtype=object)
                 target_cols = [x for x in df.columns if f'{x}__URI' in df.columns]
                 target_cols = random.choices(target_cols, k=random.randrange(len(target_cols)))
@@ -602,7 +612,7 @@ def make_gs(output_folder, endpoint):
     web_to_gs('tough/homonyms', output_folder, prefix='TOUGH_', suffix='_HOMO')
     t2d_to_gs('tough/t2d', output_folder, endpoint, prefix='TOUGH_')
     web_to_gs('tough/misspelled', output_folder, prefix='TOUGH_', suffix='_MISSP')
-    web_to_gs('tough/open_data', output_folder, prefix='TOUGH_', suffix='_OD')
+    web_to_gs('tough/misc', output_folder, prefix='TOUGH_', suffix='_MISC')
     _check_uris(output_folder)
     noise_1(output_folder, output_folder)
     noise_2(output_folder, output_folder)
@@ -686,7 +696,6 @@ if __name__ == '__main__':
     scorer_argparser = subparsers.add_parser("score", help='Evaluate your annotation system.')
     scorer_argparser.set_defaults(action='score')
     scorer_argparser.add_argument('--annotations_file', type=str, help='Path to the annotations file (CEA format).')
-    scorer_argparser.add_argument('--gs_file', type=str, default='./cea_gs/cea_gs_EXT.csv',
     scorer_argparser.add_argument('--gs_file', type=str, default='./2T_cea/2T_gt.csv',
                                   help='Path to the ground truth file. DEFAULT: ./2T_cea/2T_gt.csv')
     scorer_argparser.add_argument('--tables_folder', type=str, default=None,
