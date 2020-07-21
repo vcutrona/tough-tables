@@ -5,15 +5,17 @@ import csv
 import json
 import logging
 import os
+import pickle
 import random
 import urllib.parse
 from datetime import datetime
-from statistics import mean, stdev
-import matplotlib.pyplot as plt
 from math import pi
+from statistics import mean, stdev
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import rdflib
 from SPARQLTransformer import sparqlTransformer
 from SPARQLWrapper import SPARQLWrapper, CSV
 
@@ -245,39 +247,52 @@ def t2d_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
                 _write_df(df, f'{output_dir}/{prefix}T2D{suffix}_{entry.name}')
 
 
-"""
-Precision = (# correctly annotated cells) / (# annotated cells)
-Recall = (# correctly annotated cells) / (# target cells)
-F1 Score = (2 * Precision * Recall) / (Precision + Recall)
-"""
-
-
 def precision_score(correct_cells, annotated_cells):
+    """
+    Precision = (# correctly annotated cells) / (# annotated cells)
+    :param correct_cells:
+    :param annotated_cells:
+    :return:
+    """
     return float(len(correct_cells)) / len(annotated_cells) if len(annotated_cells) > 0 else 0.0
 
 
 def recall_score(correct_cells, gt_cell_ent):
+    """
+    Recall = (# correctly annotated cells) / (# target cells)
+    :param correct_cells:
+    :param gt_cell_ent:
+    :return:
+    """
     return float(len(correct_cells)) / len(gt_cell_ent.keys())
 
 
 def f1_score(precision, recall):
+    """
+    F1 Score = (2 * Precision * Recall) / (Precision + Recall)
+    :param precision:
+    :param recall:
+    :return:
+    """
     return (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
 
 
-"""
-Notes:
-
-6) Annotations for cells out of the target cells are ignored.
-
-1) # denotes the number.
-
-2) F1 Score is used as the primary score; Precision is used as the secondary score.
-
-3) An empty annotation of a cell will lead to an annotated cell; we suggest to exclude the cell with empty annotation in the submission file.
-"""
-
-
 def compute_score(gs_file, submission_file, tables_folder, wrong_cells_file, remove_unseen):
+    """
+    Notes (from SemTab2019 Evaluator codebase):
+    6) Annotations for cells out of the target cells are ignored.
+    1) # denotes the number.
+    2) F1 Score is used as the primary score; Precision is used as the secondary score.
+    3) An empty annotation of a cell will lead to an annotated cell; we suggest to exclude the cell with empty
+       annotation in the submission file.
+
+    :param gs_file:
+    :param submission_file:
+    :param tables_folder:
+    :param wrong_cells_file:
+    :param remove_unseen:
+    :return:
+    """
     logger.info(f'GS file: {gs_file}')
     logger.info(f'Annotations file: {submission_file}')
     scores = {}
@@ -583,6 +598,100 @@ def to_cea_format(input_dir, output_tables_dir, output_gs_dir, endpoint, sameas_
               header=False)
 
 
+def _create_types_dict(instance_types_file):
+    d = {}
+    # with open('/media/vincenzo/Data/dbpedia-index/all_data/instance_types_en.ttl', 'r') as f:
+    with open(instance_types_file, 'r') as f:
+        for line in f:
+            spo = [x[1:-1] for x in line.split(" ")]
+            if spo[0] not in d:
+                d[spo[0]] = {'type': []}
+            if 'dbpedia.org/ontology' in spo[2]:
+                d[spo[0]]['type'].append(spo[2])
+    return d
+
+
+def common_supertype_query(classes):
+    classes = [f'<{x}>' for x in classes]
+    return f"""
+    select distinct ?lcs where {{
+      ?lcs ^rdfs:subClassOf* {", ".join(classes)} .
+      filter not exists {{
+        ?llcs ^rdfs:subClassOf* {", ".join(classes)} ;
+              rdfs:subClassOf+ ?lcs .
+      }}
+    }}
+    """
+
+
+def cta_from_cea(cea_gs_file, output_gs_dir, instance_types_file, ontology_file):
+    gt = pd.read_csv(cea_gs_file, dtype=object, names=['tab_id', 'col_id', 'row_id', 'entities'])
+
+    # Annotate column types by voting
+    if not os.path.exists('cta_voting.pickle'):
+        types_d = _create_types_dict(instance_types_file)
+
+        unique = gt['entities'].unique()  # list of unique lists of types
+        ent_type_counts = {}
+        for entities in unique:
+            all_types = {}
+            list_ = entities.split(" ")
+            for entity in list_:
+                if entity in types_d:
+                    for type_ in types_d[entity]['type']:
+                        if type_ not in all_types:
+                            all_types[type_] = 0
+                        all_types[type_] += 1
+            ent_type_counts[entities] = all_types
+
+        pickle.dump(ent_type_counts, open('cta_voting.pickle', 'wb'))
+
+    ent_type_counts = pickle.load(open('cta_voting.pickle', 'rb'))
+    # types are header cells and values in columns are the occurrences of that type in the table column
+    df_types = pd.DataFrame.from_dict(ent_type_counts,
+                                      orient='index').reset_index().rename(columns={'index': 'entities'})
+    # aggregate by tab_id,col and count type occurrences
+    cta = gt.join(df_types.set_index('entities'), on='entities').groupby(['tab_id', 'col_id']).sum()
+
+    g = rdflib.Graph()
+    g.parse(ontology_file, format='nt')  # load the DBpedia ontology
+
+    cea_data = []
+    supertypes = {}
+    if os.path.exists('supertypes.pickle'):
+        supertypes = pickle.load(open('supertypes.pickle', 'rb'))
+
+    for tuple_ in cta.itertuples():
+        col = tuple_[0]  # it is a tuple (tab_id, col_id)
+        types = np.array(tuple_[1:])  # all the other header cells = all possible types
+        types = types / sum(types)  # normalize counts
+        col_types = []
+        for col_id in np.argwhere(types > 0.0):  # find types with at least one occurrence
+            col_types.append((cta.columns[col_id[0]], types[col_id[0]]))
+        col_types = sorted(col_types, key=lambda x: x[1], reverse=True)  # rank by occurrences
+        if len(col_types) > 1:  # in case of multiple types, find the lowest common supertype
+            sub_types = [col_type[0] for col_type in col_types]
+            if " ".join(sub_types) not in supertypes:
+                results = g.query(common_supertype_query(sub_types)).bindings
+                results = [res["lcs"].toPython() for res in results
+                           if 'dbpedia.org/ontology' in res['lcs'].toPython() or 'owl#Thing' in res['lcs'].toPython()]
+                if len(results) > 1:
+                    print('warning', col, sub_types, results)
+                supertypes[" ".join(sub_types)] = (results[0], 1.0)
+            col_types.insert(0, supertypes[" ".join(sub_types)])
+        if not col_types:  # force typing when no types have been found
+            col_types = [('http://www.w3.org/2002/07/owl#Thing', 1.0)]
+        cea_data.append({
+            'tab_id': col[0],
+            'col_id': col[1],
+            'type': col_types[0][0]  # use the most specific common supertype
+        })
+        pickle.dump(supertypes, open('supertypes.pickle', 'wb'))
+
+    cea_df = pd.DataFrame(cea_data)
+    _write_df(cea_df, f'{output_gs_dir}/CTA_2T_gt.csv')
+
+
 def to_mantis_format(gs_dir, tables_dir, tables_list_file):
     tables = []
     with os.scandir(gs_dir) as it:
@@ -679,6 +788,19 @@ if __name__ == '__main__':
     to_cea_argparser.add_argument('--sameas_file', type=str, default=None,
                                   help='Provide a JSON file containing sameAs links for DBP entities. DEFAULT: None')
 
+    cta_from_cea_argparser = subparsers.add_parser("cta_from_cea", help='Create CTA from the CEA GS (by voting).')
+    cta_from_cea_argparser.set_defaults(action='cta_from_cea')
+    cta_from_cea_argparser.add_argument('--cea_gs_file', type=str, default='./2T_cea/2T_gt.csv',
+                                        help='Path to the file containing the CEA gt. DEFAULT: ./2T_cea/2T_gt.csv')
+    cta_from_cea_argparser.add_argument('--output_gs_folder', type=str, default='./2T_cta',
+                                        help='Path to output folder for gold standard files. '
+                                             'DEFAULT: ./2T_cta/cta_voting.pickle')
+    cta_from_cea_argparser.add_argument('--instance_types_file', type=str, default='./instance_types_en.ttl',
+                                        help=f'File with instance types (.ttl format). '
+                                             f'DEFAULT: ./instance_types_en.ttl')
+    cta_from_cea_argparser.add_argument('--ontology_file', type=str, default='./dbpedia_2016-10.nt',
+                                        help='DBpedia ontology file (.nt format). DEFAULT: ./dbpedia_2016-10.nt')
+
     to_mantis_argparser = subparsers.add_parser("to_mantis", help='Convert GS tables to Mantistable format.')
     to_mantis_argparser.set_defaults(action='to_mantis')
     to_mantis_argparser.add_argument('--input_folder', type=str, default='./2T_cea/tables',
@@ -731,6 +853,8 @@ if __name__ == '__main__':
         elif args.action == 'to_cea':
             to_cea_format(args.input_folder, args.output_tables_folder, args.output_gs_folder, args.endpoint,
                           args.sameas_file)
+        elif args.action == 'cta_from_cea':
+            cta_from_cea(args.cea_gs_file, args.output_gs_folder, args.instance_types_file, args.ontology_file)
         elif args.action == 'to_mantis':
             to_mantis_format(args.input_folder, args.tables_folder, args.tables_list_file)
         elif args.action == 'to_idlab':
