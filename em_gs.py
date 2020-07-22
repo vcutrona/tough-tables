@@ -205,7 +205,7 @@ def wiki_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
                 _write_df(df, f'{output_dir}/{prefix}WIKI_{suffix}{entry.name}')
 
 
-def web_to_gs(input_dir, output_dir, prefix='', suffix=''):
+def web_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
     with os.scandir(input_dir) as it:
         for entry in it:
             if os.path.isfile(f'{output_dir}/{prefix}WEB{suffix}_{entry.name}'):
@@ -214,6 +214,15 @@ def web_to_gs(input_dir, output_dir, prefix='', suffix=''):
             elif entry.name.endswith(".csv") and entry.is_file():
                 logger.info(f'Processing file: {entry.path}')
                 df = pd.read_csv(entry.path, dtype=object)
+                for col in df.columns:
+                    if '__URI' in col:
+                        new_values = []
+                        for uri in df[col]:
+                            # dbp_uri = to_dbp_uri(uri, endpoint)
+                            # if dbp_uri is None and uri is not np.nan:
+                            # logger.warning(f'No DB_URI found for {uri} in {col}')
+                            new_values.append(to_dbp_uri(uri, endpoint))
+                        df[col] = new_values
                 _write_df(df, f'{output_dir}/{prefix}WEB{suffix}_{entry.name}')
 
 
@@ -718,10 +727,10 @@ def make_gs(output_folder, endpoint):
     sparql_to_gs('control/query', output_folder, endpoint, prefix='CTRL_')
     wiki_to_gs('control/wiki', output_folder, endpoint, prefix='CTRL_')
     sparql_to_gs('tough/homonyms/queries', output_folder, endpoint, prefix='TOUGH_', suffix='_HOMO')
-    web_to_gs('tough/homonyms', output_folder, prefix='TOUGH_', suffix='_HOMO')
+    web_to_gs('tough/homonyms', output_folder, endpoint, prefix='TOUGH_', suffix='_HOMO')
     t2d_to_gs('tough/t2d', output_folder, endpoint, prefix='TOUGH_')
-    web_to_gs('tough/misspelled', output_folder, prefix='TOUGH_', suffix='_MISSP')
-    web_to_gs('tough/misc', output_folder, prefix='TOUGH_', suffix='_MISC')
+    web_to_gs('tough/misspelled', output_folder, endpoint, prefix='TOUGH_', suffix='_MISSP')
+    web_to_gs('tough/misc', output_folder, endpoint, prefix='TOUGH_', suffix='_MISC')
     _check_uris(output_folder)
     noise_1(output_folder, output_folder)
     noise_2(output_folder, output_folder)
@@ -748,6 +757,8 @@ if __name__ == '__main__':
                                help='Path to the folder containing Web tables. DEFAULT: ./web')
     web_argparser.add_argument('--output_folder', type=str, default='./gs',
                                help='Path to output folder. DEFAULT: ./gs')
+    web_argparser.add_argument('--endpoint', type=str, default=SPARQL_ENDPOINT,
+                               help=f'SPARQL endpoint. DEFAULT: {SPARQL_ENDPOINT}')
 
     dbp_argparser = subparsers.add_parser("dbp", help='Create tables from DBpedia SPARQL queries.')
     dbp_argparser.set_defaults(action='dbp')
@@ -841,7 +852,7 @@ if __name__ == '__main__':
         if args.action == 'wiki':
             wiki_to_gs(args.input_folder, args.output_folder, args.endpoint)
         elif args.action == 'web':
-            web_to_gs(args.input_folder, args.output_folder)
+            web_to_gs(args.input_folder, args.output_folder, args.endpoint)
         elif args.action == 'dbp':
             sparql_to_gs(args.input_folder, args.output_folder, args.endpoint)
         elif args.action == 't2d':
