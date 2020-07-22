@@ -2,6 +2,7 @@
 
 import argparse
 import csv
+import io
 import json
 import logging
 import os
@@ -234,8 +235,9 @@ def sparql_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
                     f'Skipping file: {entry.path} - {output_dir}/{prefix}DBP{suffix}_{entry.name.replace(".rq", ".csv")} already exists.')
             elif entry.name.endswith(".rq") and entry.is_file():
                 logger.info(f'Processing file: {entry.path}')
-                with open(f'{output_dir}/{prefix}DBP{suffix}_{entry.name.replace(".rq", ".csv")}', 'wb') as out:
-                    out.write(_sparql_exec(open(entry.path, 'r').read(), endpoint))
+
+                df = pd.read_csv(io.BytesIO(_sparql_exec(open(entry.path, 'r').read(), endpoint)), dtype=object)
+                _write_df(df, f'{output_dir}/{prefix}DBP{suffix}_{entry.name.replace(".rq", ".csv")}')
 
 
 def t2d_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
