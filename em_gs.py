@@ -38,8 +38,6 @@ TABLE_CATEGORIES = {
     'TOUGH_NOISE2': (['TOUGH', 'NOISE2'], [])
 }
 
-random.seed(42)
-
 
 def _write_df(df, filename, drop=True, strip=True, index=False, header=True, quoting=csv.QUOTE_ALL):
     if drop:
@@ -502,6 +500,7 @@ def remove_duplicates_from_gs(input_dir):
 
 
 def noise_1(input_dir, output_dir):
+    np.random.seed(99)
     with os.scandir(input_dir) as it:
         for entry in it:
             if entry.name.endswith(".csv") and 'MISSP' in entry.name and 'NOISE' not in entry.name and entry.is_file():
@@ -511,24 +510,24 @@ def noise_1(input_dir, output_dir):
                 for i in np.arange(0.0, 1.0, 0.1):
                     i = round(float(i), 2)
 
-                    if os.path.isfile(f'{output_dir}/{entry.name[:-4]}_NOISE1_{str(i)}.csv'):
-                        logger.info(
-                            f'Skipping file: {entry.path} - {output_dir}/{entry.name[:-4]}_NOISE1_{str(i)}.csv already exists.')
-                    else:
-                        logger.info(f'Processing file: {entry.path} (noise {i})')
+                    # if os.path.isfile(f'{output_dir}/{entry.name[:-4]}_NOISE1_{str(i)}.csv'):
+                    #     logger.info(
+                    #         f'Skipping file: {entry.path} - {output_dir}/{entry.name[:-4]}_NOISE1_{str(i)}.csv already exists.')
+                    # else:
+                    logger.info(f'Processing file: {entry.path} (noise {i})')
 
-                        msk = np.random.rand(len(df)) < i
+                    msk = np.random.rand(len(df)) < i
 
-                        corrupted = df[msk]
-                        pure = df[~msk]
+                    corrupted = df[msk]
+                    pure = df[~msk]
 
-                        corrupted = corrupted.drop(columns=[pure_col, f'{pure_col}__URI'])
-                        pure = pure.drop(columns=[msp_col, f'{msp_col}__URI'])
+                    corrupted = corrupted.drop(columns=[pure_col, f'{pure_col}__URI'])
+                    pure = pure.drop(columns=[msp_col, f'{msp_col}__URI'])
 
-                        corrupted.columns = [x.replace("_misspelled", "") for x in corrupted.columns]
+                    corrupted.columns = [x.replace("_misspelled", "") for x in corrupted.columns]
 
-                        noisy_df = pd.concat([corrupted, pure])
-                        _write_df(noisy_df, f'{output_dir}/{entry.name[:-4]}_NOISE1_{str(i)}.csv')
+                    noisy_df = pd.concat([corrupted, pure])
+                    _write_df(noisy_df, f'{output_dir}/{entry.name[:-4]}_NOISE1_{str(i)}.csv')
 
 
 def random_noise(x):
@@ -544,12 +543,13 @@ def random_noise(x):
 
 
 def noise_2(input_dir, output_dir):
+    random.seed(42)
     with os.scandir(input_dir) as it:
         for entry in it:
-            if os.path.isfile(f'{output_dir}/{entry.name[:-4]}_NOISE2.csv'):
-                logger.info(
-                    f'Skipping file: {entry.path} - {output_dir}/{entry.name[:-4]}_NOISE2.csv already exists.')
-            elif entry.name.endswith(".csv") and entry.is_file() and 'NOISE' not in entry.name:
+            # if os.path.isfile(f'{output_dir}/{entry.name[:-4]}_NOISE2.csv'):
+            #     logger.info(
+            #         f'Skipping file: {entry.path} - {output_dir}/{entry.name[:-4]}_NOISE2.csv already exists.')
+            if entry.name.endswith(".csv") and entry.is_file() and 'NOISE' not in entry.name:
                 logger.info(f'Processing file: {entry.path} (noise 2)')
                 df = pd.read_csv(entry.path, dtype=object)
                 target_cols = [x for x in df.columns if f'{x}__URI' in df.columns]
