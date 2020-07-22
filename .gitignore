@@ -1,6 +1,7 @@
 *_bkp/
 2T_cea/tables/*.csv
 2T_cea/*.csv
+2T_cta/*.csv
 dbp_*.json
 
 # Created by https://www.gitignore.io/api/python,virtualenv,jupyternotebooks
