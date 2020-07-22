@@ -251,7 +251,7 @@ def t2d_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
                     if '__URI' in col:
                         new_values = []
                         for uri in df[col]:
-                            new_values.append(to_dbp_uri(str(uri).split(" ")[0], endpoint))
+                            new_values.append(to_dbp_uri(uri, endpoint))
                         df[col] = new_values
                 _write_df(df, f'{output_dir}/{prefix}T2D{suffix}_{entry.name}')
 
@@ -492,6 +492,7 @@ def remove_duplicates_from_gs(input_dir):
     with os.scandir(input_dir) as it:
         for entry in it:
             if entry.name.endswith(".csv") and entry.is_file():
+                logger.info(f'Removing duplicates from {entry.path}')
                 df = pd.read_csv(entry.path, dtype=object)
 
                 # remove duplicates without considering __URI cols
@@ -538,7 +539,7 @@ def random_noise(x):
             x = x[:rnd_posix] + x[:rnd_posix][-1] + x[rnd_posix:]
         elif rnd > 0.3:  # duplicate last letter:
             x = x + x[-1]
-        # else -> return the string as is with no intervention
+        # else -> return the string as it is with no intervention
     return x
 
 
