@@ -221,7 +221,7 @@
 "Puerto Rico","http://dbpedia.org/resource/Puerto_Rico","Rio Grande",,"Río Grande","http://dbpedia.org/resource/R%C3%ADo_Grande,_Puerto_Rico"
 "Argentina","http://dbpedia.org/resource/Argentina","Tierra del Fuego","http://dbpedia.org/resource/Tierra_del_Fuego_Province,_Argentina","Río Grande","http://dbpedia.org/resource/Río_Grande,_Tierra_del_Fuego"
 "Panama","http://dbpedia.org/resource/Panama","Veraguas","http://dbpedia.org/resource/Veraguas_Province","Río Grande","http://dbpedia.org/resource/Río_Grande,_Veraguas"
-"Mexico","http://dbpedia.org/resource/Mexico","Zacatecas","http://dbpedia.org/resource/Zacatecas","Río Grande","http://dbpedia.org/resource/Río_Grande,_Zacatecas"
+"Mexico","http://dbpedia.org/resource/Mexico","Zacatecas","http://dbpedia.org/resource/Zacatecas","Río Grande",""
 "Philippines","http://dbpedia.org/resource/Philippines","Cavite","http://dbpedia.org/resource/Legislative_districts_of_Cavite","Rosario","http://dbpedia.org/resource/Rosario,_Cavite"
 "Philippines","http://dbpedia.org/resource/Philippines","Batangas","http://dbpedia.org/resource/Legislative_districts_of_Batangas","Rosario","http://dbpedia.org/resource/Rosario,_Batangas"
 "Italy","http://dbpedia.org/resource/Italy","Calabria","http://dbpedia.org/resource/Calabria,_Italy","Rosario",
@@ -266,7 +266,7 @@
 "Philippines","http://dbpedia.org/resource/Philippines","Northern Mindanao","http://dbpedia.org/resource/Northern_Mindanao","San Jose",
 "Philippines","http://dbpedia.org/resource/Philippines","Western Visayas","http://dbpedia.org/resource/Western_Visayas","San Jose","http://dbpedia.org/resource/San_Jose_de_Buenavista,_Antique"
 "Costa Rica","http://dbpedia.org/resource/Costa_Rica","Alajuela","http://dbpedia.org/resource/Alajuela","San José","http://dbpedia.org/resource/San_Jos%C3%A9_de_Alajuela"
-"Spain","http://dbpedia.org/resource/Spain","Andalusia","http://dbpedia.org/resource/Andalusia,_Spain","San José","http://dbpedia.org/resource/San_José,_Andalusia"
+"Spain","http://dbpedia.org/resource/Spain","Andalusia","http://dbpedia.org/resource/Andalusia,_Spain","San José","http://dbpedia.org/resource/San_José_(Almeria)"
 "Paraguay","http://dbpedia.org/resource/Paraguay","Caaguazu","http://dbpedia.org/resource/Caaguazú_Department","San José","http://dbpedia.org/resource/San_Jos%C3%A9_de_los_Arroyos"
 "Colombia","http://dbpedia.org/resource/Colombia","Caldas","http://dbpedia.org/resource/Caldas_Department","San José","http://dbpedia.org/resource/San_Jos%C3%A9,_Caldas"
 "Argentina","http://dbpedia.org/resource/Argentina","Catamarca","http://dbpedia.org/resource/Catamarca_Province","San José","http://dbpedia.org/resource/San_Jos%C3%A9_(Santa_Mar%C3%ADa)"

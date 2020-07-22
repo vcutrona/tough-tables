@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 import rdflib
 from SPARQLTransformer import sparqlTransformer
-from SPARQLWrapper import SPARQLWrapper, CSV
+from SPARQLWrapper import SPARQLWrapper, CSV, JSON
 
 logger = logging.getLogger('em_gs')
 logger.setLevel(logging.INFO)
@@ -62,16 +62,9 @@ def to_dbp_uri(uri, endpoint):
     except:
         logger.critical(f'Impossible to create a valid URI from {db_uri}')
         return None
-    query = {
-        "proto": {
-            "p": "?p$anchor",
-            "o": "?o"
-        },
-        "$limit": 1,
-        "$where": f'<{db_uri}> ?p ?o'
-    }
-    res = _json_exec(query, endpoint)
-    if len(res) > 0:
+    query = f"ASK {{ <{db_uri}> ?p ?o . }}"
+    res = _sparql_exec(query, endpoint, JSON)
+    if res['boolean']:
         return db_uri
     logger.warning(f'No DB_URI found for {uri} -> {db_uri}')
     return None
@@ -81,10 +74,10 @@ def _json_exec(query, endpoint, debug=False):
     return sparqlTransformer(query, {'endpoint': endpoint, 'debug': debug})
 
 
-def _sparql_exec(query, endpoint):
-    sparql = SPARQLWrapper(endpoint)
+def _sparql_exec(query, endpoint, ret_format):
+    sparql = SPARQLWrapper(endpoint, defaultGraph='http://dbpedia.org')
     sparql.setQuery(query)
-    sparql.setReturnFormat(CSV)
+    sparql.setReturnFormat(ret_format)
     result = sparql.queryAndConvert()
     return result
 
@@ -234,7 +227,7 @@ def sparql_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
             elif entry.name.endswith(".rq") and entry.is_file():
                 logger.info(f'Processing file: {entry.path}')
 
-                df = pd.read_csv(io.BytesIO(_sparql_exec(open(entry.path, 'r').read(), endpoint)), dtype=object)
+                df = pd.read_csv(io.BytesIO(_sparql_exec(open(entry.path, 'r').read(), endpoint, CSV)), dtype=object)
                 _write_df(df, f'{output_dir}/{prefix}DBP{suffix}_{entry.name.replace(".rq", ".csv")}')
 
 
