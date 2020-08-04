@@ -31,7 +31,7 @@ TABLE_CATEGORIES = {
     'CTRL_NOISE2': (['CTRL', 'NOISE2'], []),
     'TOUGH_T2D': (['T2D'], ['NOISE2']),
     'TOUGH_HOMO': (['HOMO'], ['SORTED', 'NOISE2']),
-    'TOUGH_OTHER': (['OTHER'], ['NOISE2']),
+    'TOUGH_MISC': (['MISC'], ['NOISE2']),
     'TOUGH_MISSP': (['MISSP'], ['NOISE1', 'NOISE2']),
     'TOUGH_SORTED': (['SORTED'], ['NOISE2']),
     'TOUGH_NOISE1': (['NOISE1'], []),
@@ -95,12 +95,12 @@ def _check_uris(folder):
                                 logger.error(f"Unvalid URI: {uri}")
 
 
-def _is_table_in_cat(x, include, exclude):
+def _is_table_in_cat(x, whitelist, blacklist):
     b = True
-    for i in include:
+    for i in whitelist:
         if not (b and (i in x)):
             return False
-    for e in exclude:
+    for e in blacklist:
         if not (b and (e not in x)):
             return False
     return True
@@ -130,8 +130,8 @@ def gt_stats(folder):
                 for col in df.columns:
                     if '__URI' in col:
                         stats[entry.name]['entities'].update(df[col].unique())
-                        stats[entry.name]['annotated_cells'] = stats[entry.name]['annotated_cells'] + \
-                                                               df[col].dropna().shape[0]
+                        stats[entry.name]['annotated_cells'] = stats[entry.name]['annotated_cells'] \
+                                                               + df[col].dropna().shape[0]
                         stats[entry.name]['annotated_columns'] = stats[entry.name]['annotated_columns'] + 1
                     else:
                         stats[entry.name]['columns'] = stats[entry.name]['columns'] + 1
