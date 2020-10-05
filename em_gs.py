@@ -493,6 +493,25 @@ def remove_duplicates_from_gs(input_dir):
                 _write_df(df, entry.path)
 
 
+def remove_wrong_values(input_dir):
+    """
+    Helper method to drop rows with wrong values. The foaf:name property in DBpedia is
+    a bit noisy, thus some queries return wrong labels.
+    :param input_dir:
+    :return:
+    """
+    dirty_values = ["''", "font-size:88%;", "(old stadium)"]
+    with os.scandir(input_dir) as it:
+        for entry in it:
+            if entry.name.endswith(".csv") and entry.is_file():
+                logger.info(f'Removing dirty entries from {entry.path}')
+                df = pd.read_csv(entry.path, dtype=object)
+                target_cols = [x for x in df.columns if f'{x}__URI' in df.columns]
+                for col in target_cols:
+                    df = df[~df[col].isin(dirty_values)]
+                _write_df(df, entry.path)
+
+
 def noise_1(input_dir, output_dir):
     np.random.seed(99)
     with os.scandir(input_dir) as it:
@@ -530,7 +549,7 @@ def random_noise(x):
         if rnd > 0.8 and len(x) > 1:  # duplicate a random char
             rnd_posix = random.randint(1, len(x) - 1)
             x = x[:rnd_posix] + x[:rnd_posix][-1] + x[rnd_posix:]
-        elif rnd > 0.3:  # duplicate last letter:
+        elif rnd > 0.3:  # duplicate last char:
             x = x + x[-1]
         # else -> return the string as it is with no intervention
     return x
@@ -547,7 +566,9 @@ def noise_2(input_dir, output_dir):
                 logger.info(f'Processing file: {entry.path} (noise 2)')
                 df = pd.read_csv(entry.path, dtype=object)
                 target_cols = [x for x in df.columns if f'{x}__URI' in df.columns]
-                target_cols = random.choices(target_cols, k=random.randrange(len(target_cols)))
+                # random.choices might return duplicates -> noise applied more than once on the same column
+                # Forcing the selection of at least 1 col to avoid duplicated tables (original table == noisy table)
+                target_cols = random.choices(target_cols, k=random.randint(1, len(target_cols)))
                 for col in target_cols:
                     df[col] = df[col].apply(random_noise)
                 _write_df(df, f'{output_dir}/{entry.name[:-4]}_NOISE2.csv')
@@ -727,6 +748,7 @@ def make_gs(output_folder, endpoint):
     t2d_to_gs('tough/t2d', output_folder, endpoint, prefix='TOUGH_')
     web_to_gs('tough/misspelled', output_folder, endpoint, prefix='TOUGH_', suffix='_MISSP')
     web_to_gs('tough/misc', output_folder, endpoint, prefix='TOUGH_', suffix='_MISC')
+    remove_wrong_values(output_folder)
     _check_uris(output_folder)
     noise_1(output_folder, output_folder)
     noise_2(output_folder, output_folder)
