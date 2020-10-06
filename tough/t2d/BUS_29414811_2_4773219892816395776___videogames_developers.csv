@@ -1,4 +1,4 @@
-"Year","Game","Game__URI","Genre","Genre__URI","Platform(s)","Platform(s)__URI","Developer(s)","Unnamed: 8"
+"Year","Game","Game__URI","Genre","Genre__URI","Platform(s)","Platform(s)__URI","Developer(s)","Developer(s)__URI"
 "2010","Red Dead Redemption","http://dbpedia.org/resource/Red_Dead_Redemption","Open World","http://dbpedia.org/resource/Open_world","PlayStation 3","http://dbpedia.org/resource/PlayStation_3","Rockstar San Diego","http://dbpedia.org/resource/Rockstar_San_Diego"
 "2010","Red Dead Redemption","http://dbpedia.org/resource/Red_Dead_Redemption","(Third-Person) Shooter","http://dbpedia.org/resource/Third_Person_Shooter","PlayStation 3","http://dbpedia.org/resource/PlayStation_3","Rockstar San Diego","http://dbpedia.org/resource/Rockstar_San_Diego"
 "2010","Red Dead Redemption","http://dbpedia.org/resource/Red_Dead_Redemption","Open World","http://dbpedia.org/resource/Open_world","Xbox 360","http://dbpedia.org/resource/Xbox_360","Rockstar San Diego","http://dbpedia.org/resource/Rockstar_San_Diego"
