@@ -488,8 +488,14 @@ def remove_duplicates_from_gs(input_dir):
                 logger.info(f'Removing duplicates from {entry.path}')
                 df = pd.read_csv(entry.path, dtype=object)
 
-                # remove duplicates without considering __URI cols
-                df = df[~df[[col for col in df.columns if '__URI' not in col]].duplicated()]
+                """
+                Remove duplicates without considering __URI cols. E.g.:
+                player      player__URI             team                team__URI
+                John Bain   dbr:John_Bain_(soccer)  Portland Timbers    dbr:Portland_Timbers_(1975–82)'
+                John Bain   dbr:John_Bain_(soccer)  Portland Timbers    dbr:Portland_Timbers_(1985–90)'
+                The discriminative feature is the URI itself -> drop all
+                """
+                df = df[~df[[col for col in df.columns if '__URI' not in col]].duplicated(keep=False)]
                 _write_df(df, entry.path)
 
 
@@ -549,7 +555,7 @@ def random_noise(x):
         if rnd > 0.8 and len(x) > 1:  # duplicate a random char
             rnd_posix = random.randint(1, len(x) - 1)
             x = x[:rnd_posix] + x[:rnd_posix][-1] + x[rnd_posix:]
-        elif rnd > 0.3:  # duplicate last char:
+        elif rnd > 0.4:  # duplicate last char:
             x = x + x[-1]
         # else -> return the string as it is with no intervention
     return x
