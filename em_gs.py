@@ -688,7 +688,7 @@ def cta_from_cea(cea_gs_file, output_gs_dir, instance_types_file, ontology_file)
     g = rdflib.Graph()
     g.parse(ontology_file, format='nt')  # load the DBpedia ontology
 
-    cea_data = []
+    cta_data = []
     supertypes = {}
     if os.path.exists('supertypes.pickle'):
         supertypes = pickle.load(open('supertypes.pickle', 'rb'))
@@ -713,15 +713,15 @@ def cta_from_cea(cea_gs_file, output_gs_dir, instance_types_file, ontology_file)
             col_types.insert(0, supertypes[" ".join(sub_types)])
         if not col_types:  # force typing when no types have been found
             col_types = [('http://www.w3.org/2002/07/owl#Thing', 1.0)]
-        cea_data.append({
+        cta_data.append({
             'tab_id': col[0],
             'col_id': col[1],
             'type': col_types[0][0]  # use the most specific common supertype
         })
         pickle.dump(supertypes, open('supertypes.pickle', 'wb'))
 
-    cea_df = pd.DataFrame(cea_data)
-    _write_df(cea_df, f'{output_gs_dir}/CTA_2T_gt.csv')
+    cta_df = pd.DataFrame(cta_data)
+    _write_df(cta_df, f'{output_gs_dir}/CTA_2T_gt.csv', header=False)
 
 
 def to_mantis_format(gs_dir, tables_dir, tables_list_file):
@@ -829,7 +829,7 @@ if __name__ == '__main__':
                                         help='Path to the file containing the CEA gt. DEFAULT: ./2T_cea/2T_gt.csv')
     cta_from_cea_argparser.add_argument('--output_gs_folder', type=str, default='./2T_cta',
                                         help='Path to output folder for gold standard files. '
-                                             'DEFAULT: ./2T_cta/cta_voting.pickle')
+                                             'DEFAULT: ./2T_cta')
     cta_from_cea_argparser.add_argument('--instance_types_file', type=str, default='./instance_types_en.ttl',
                                         help=f'File with instance types (.ttl format). '
                                              f'DEFAULT: ./instance_types_en.ttl')
