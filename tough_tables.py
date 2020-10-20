@@ -20,7 +20,7 @@ import rdflib
 from SPARQLTransformer import sparqlTransformer
 from SPARQLWrapper import SPARQLWrapper, CSV, JSON
 
-logger = logging.getLogger('em_gs')
+logger = logging.getLogger('tough_tables')
 logger.setLevel(logging.INFO)
 
 SPARQL_ENDPOINT = 'http://dbpedia.org/sparql'
@@ -189,9 +189,6 @@ def wiki_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
                     if '__URI' in col:
                         new_values = []
                         for uri in df[col]:
-                            # dbp_uri = to_dbp_uri(uri, endpoint)
-                            # if dbp_uri is None and uri is not np.nan:
-                            # logger.warning(f'No DB_URI found for {uri} in {col}')
                             new_values.append(to_dbp_uri(uri, endpoint))
                         df[col] = new_values
                 _write_df(df, f'{output_dir}/{prefix}WIKI_{suffix}{entry.name}')
@@ -210,9 +207,6 @@ def web_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
                     if '__URI' in col:
                         new_values = []
                         for uri in df[col]:
-                            # dbp_uri = to_dbp_uri(uri, endpoint)
-                            # if dbp_uri is None and uri is not np.nan:
-                            # logger.warning(f'No DB_URI found for {uri} in {col}')
                             new_values.append(to_dbp_uri(uri, endpoint))
                         df[col] = new_values
                 _write_df(df, f'{output_dir}/{prefix}WEB{suffix}_{entry.name}')
@@ -223,7 +217,8 @@ def sparql_to_gs(input_dir, output_dir, endpoint, prefix='', suffix=''):
         for entry in it:
             if os.path.isfile(f'{output_dir}/{prefix}DBP{suffix}_{entry.name.replace(".rq", ".csv")}'):
                 logger.info(
-                    f'Skipping file: {entry.path} - {output_dir}/{prefix}DBP{suffix}_{entry.name.replace(".rq", ".csv")} already exists.')
+                    f'Skipping file: {entry.path} - '
+                    f'{output_dir}/{prefix}DBP{suffix}_{entry.name.replace(".rq", ".csv")} already exists.')
             elif entry.name.endswith(".rq") and entry.is_file():
                 logger.info(f'Processing file: {entry.path}')
 
@@ -335,15 +330,6 @@ def compute_score(gs_file, submission_file, tables_folder, wrong_cells_file, rem
                     'actual': row['entity'],
                     'target': " ".join(gt_cell_ent_orig[cell])
                 })
-    # precision = precision_score(correct_cells, annotated_cells)
-    # recall = recall_score(correct_cells, gt_cell_ent)
-    # f1 = f1_score(precision, recall)
-    #
-    # scores['ALL'] = {
-    #     'precision': precision,
-    #     'recall': recall,
-    #     'f1': f1
-    # }
 
     for cat in TABLE_CATEGORIES:
         if cat == 'ALL':
@@ -477,7 +463,6 @@ def _get_sameas(uri, endpoint):
             sameas.add(uri)
     except:
         print("error for URI", uri)
-        pass
     return list(filter(lambda x: 'http://dbpedia.org' in x, list(sameas)))
 
 
@@ -528,11 +513,6 @@ def noise_1(input_dir, output_dir):
                 pure_col = msp_col.replace("_misspelled", "")
                 for i in np.arange(0.0, 1.0, 0.1):
                     i = round(float(i), 2)
-
-                    # if os.path.isfile(f'{output_dir}/{entry.name[:-4]}_NOISE1_{str(i)}.csv'):
-                    #     logger.info(
-                    #         f'Skipping file: {entry.path} - {output_dir}/{entry.name[:-4]}_NOISE1_{str(i)}.csv already exists.')
-                    # else:
                     logger.info(f'Processing file: {entry.path} (noise {i})')
 
                     msk = np.random.rand(len(df)) < i
@@ -565,9 +545,6 @@ def noise_2(input_dir, output_dir):
     random.seed(42)
     with os.scandir(input_dir) as it:
         for entry in it:
-            # if os.path.isfile(f'{output_dir}/{entry.name[:-4]}_NOISE2.csv'):
-            #     logger.info(
-            #         f'Skipping file: {entry.path} - {output_dir}/{entry.name[:-4]}_NOISE2.csv already exists.')
             if entry.name.endswith(".csv") and entry.is_file() and 'NOISE' not in entry.name:
                 logger.info(f'Processing file: {entry.path} (noise 2)')
                 df = pd.read_csv(entry.path, dtype=object)
@@ -605,10 +582,9 @@ def to_cea_format(input_dir, output_tables_dir, output_gs_dir, endpoint, sameas_
                         count = count + 1
                         for row_id, value in columnData.iteritems():
                             if value is not np.nan:
-                                # row_id + 1 due to the header row
                                 ann = {'tab_id': tab_id,
                                        'col_id': str(col_id - count),
-                                       'row_id': str(row_id + 1),
+                                       'row_id': str(row_id + 1),  # row_id + 1 due to the header row
                                        'entity': value}
                                 annotations.append(ann)
 
@@ -632,7 +608,6 @@ def to_cea_format(input_dir, output_tables_dir, output_gs_dir, endpoint, sameas_
 
 def _create_types_dict(instance_types_file):
     d = {}
-    # with open('/media/vincenzo/Data/dbpedia-index/all_data/instance_types_en.ttl', 'r') as f:
     with open(instance_types_file, 'r') as f:
         for line in f:
             spo = [x[1:-1] for x in line.split(" ")]
@@ -856,7 +831,8 @@ if __name__ == '__main__':
     scorer_argparser.add_argument('--gs_file', type=str, default='./2T_cea/2T_gt.csv',
                                   help='Path to the ground truth file. DEFAULT: ./2T_cea/2T_gt.csv')
     scorer_argparser.add_argument('--tables_folder', type=str, default=None,
-                                  help='Path to folder with original tables. Provide it only if you want cells content along with wrong annotations. DEFAULT: None')
+                                  help='Path to folder with original tables. Provide it only if you want cells content '
+                                       'along with wrong annotations. DEFAULT: None')
     scorer_argparser.add_argument('--wrong_cells_file', type=str, default=None,
                                   help='File to store the wrong cells as CSV.  DEFAULT: None')
     scorer_argparser.add_argument('--remove_unseen', action='store_true',
