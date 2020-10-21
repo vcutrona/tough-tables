@@ -557,7 +557,7 @@ def noise_2(input_dir, output_dir):
                 _write_df(df, f'{output_dir}/{entry.name[:-4]}_NOISE2.csv')
 
 
-def to_cea_format(input_dir, output_tables_dir, output_gs_dir, endpoint, sameas_file):
+def to_cea_format(input_dir, output_tables_dir, output_gs_dir, output_target_dir, endpoint, sameas_file):
     if sameas_file is None:
         logger.warning(f'SameAs file not provided. Queries to DBpedia could take some time.')
         sameas_dict = {}
@@ -602,7 +602,10 @@ def to_cea_format(input_dir, output_tables_dir, output_gs_dir, endpoint, sameas_
 
             json.dump(sameas_dict, open('dbp_sameas.json', 'w'), indent=4)
     _write_df(pd.DataFrame(ext_annotations)[['tab_id', 'col_id', 'row_id', 'entity']],
-              f'{output_gs_dir}/2T_gt.csv',
+              f'{output_gs_dir}/CEA_2T_gt.csv',
+              header=False)
+    _write_df(pd.DataFrame(ext_annotations)[['tab_id', 'col_id', 'row_id']],
+              f'{output_target_dir}/CEA_2T_Targets.csv',
               header=False)
 
 
@@ -631,7 +634,7 @@ def common_supertype_query(classes):
     """
 
 
-def cta_from_cea(cea_gs_file, output_gs_dir, instance_types_file, ontology_file):
+def cta_from_cea(cea_gs_file, output_gs_dir, output_target_dir, instance_types_file, ontology_file):
     gt = pd.read_csv(cea_gs_file, dtype=object, names=['tab_id', 'col_id', 'row_id', 'entities'])
 
     # Annotate column types by voting
@@ -697,6 +700,7 @@ def cta_from_cea(cea_gs_file, output_gs_dir, instance_types_file, ontology_file)
 
     cta_df = pd.DataFrame(cta_data)
     _write_df(cta_df, f'{output_gs_dir}/CTA_2T_gt.csv', header=False)
+    _write_df(cta_df[['tab_id', 'col_id']], f'{output_target_dir}/CTA_2T_gt.csv', header=False)
 
 
 def to_mantis_format(gs_dir, tables_dir, tables_list_file):
@@ -789,10 +793,12 @@ if __name__ == '__main__':
     to_cea_argparser.set_defaults(action='to_cea')
     to_cea_argparser.add_argument('--input_folder', type=str, default='./gs',
                                   help='Path to the folder containing GS tables DEFAULT: ./gs')
-    to_cea_argparser.add_argument('--output_tables_folder', type=str, default='./2T_cea/tables',
-                                  help='Path to output folder for tables. DEFAULT: ./2T_cea/tables')
-    to_cea_argparser.add_argument('--output_gs_folder', type=str, default='./2T_cea',
-                                  help='Path to output folder for gold standard files. DEFAULT: ./2T_cea')
+    to_cea_argparser.add_argument('--output_tables_folder', type=str, default='./2T/tables',
+                                  help='Path to output folder for tables. DEFAULT: ./2T/tables')
+    to_cea_argparser.add_argument('--output_gs_folder', type=str, default='./2T/gt',
+                                  help='Path to output folder for the ground truth file. DEFAULT: ./2T/gt')
+    to_cea_argparser.add_argument('--output_target_folder', type=str, default='./2T/targets',
+                                  help='Path to output folder for the target file. DEFAULT: ./2T/targets')
     to_cea_argparser.add_argument('--endpoint', type=str, default=SPARQL_ENDPOINT,
                                   help=f'SPARQL endpoint. DEFAULT: {SPARQL_ENDPOINT}')
     to_cea_argparser.add_argument('--sameas_file', type=str, default=None,
@@ -800,11 +806,12 @@ if __name__ == '__main__':
 
     cta_from_cea_argparser = subparsers.add_parser("cta_from_cea", help='Create CTA from the CEA GS (by voting).')
     cta_from_cea_argparser.set_defaults(action='cta_from_cea')
-    cta_from_cea_argparser.add_argument('--cea_gs_file', type=str, default='./2T_cea/2T_gt.csv',
-                                        help='Path to the file containing the CEA gt. DEFAULT: ./2T_cea/2T_gt.csv')
-    cta_from_cea_argparser.add_argument('--output_gs_folder', type=str, default='./2T_cta',
-                                        help='Path to output folder for gold standard files. '
-                                             'DEFAULT: ./2T_cta')
+    cta_from_cea_argparser.add_argument('--cea_gs_file', type=str, default='./2T/gt/CEA_2T_gt.csv',
+                                        help='Path to the file containing the CEA gt. DEFAULT: ./2T/gt/CEA_2T_gt.csv')
+    cta_from_cea_argparser.add_argument('--output_gs_folder', type=str, default='./2T/gt',
+                                        help='Path to output folder for the ground truth file. DEFAULT: ./2T/gt')
+    cta_from_cea_argparser.add_argument('--output_target_folder', type=str, default='./2T/targets',
+                                        help='Path to output folder for the target file. DEFAULT: ./2T/targets')
     cta_from_cea_argparser.add_argument('--instance_types_file', type=str, default='./instance_types_en.ttl',
                                         help=f'File with instance types (.ttl format). '
                                              f'DEFAULT: ./instance_types_en.ttl')
@@ -862,10 +869,11 @@ if __name__ == '__main__':
         elif args.action == 'stats':
             gt_stats(args.input_folder)
         elif args.action == 'to_cea':
-            to_cea_format(args.input_folder, args.output_tables_folder, args.output_gs_folder, args.endpoint,
-                          args.sameas_file)
+            to_cea_format(args.input_folder, args.output_tables_folder, args.output_gs_folder,
+                          args.output_target_folder, args.endpoint, args.sameas_file)
         elif args.action == 'cta_from_cea':
-            cta_from_cea(args.cea_gs_file, args.output_gs_folder, args.instance_types_file, args.ontology_file)
+            cta_from_cea(args.cea_gs_file, args.output_gs_folder, args.output_target_folder,
+                         args.instance_types_file, args.ontology_file)
         elif args.action == 'to_mantis':
             to_mantis_format(args.input_folder, args.tables_folder, args.tables_list_file)
         elif args.action == 'to_idlab':
