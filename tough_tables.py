@@ -700,7 +700,7 @@ def cta_from_cea(cea_gs_file, output_gs_dir, output_target_dir, instance_types_f
 
     cta_df = pd.DataFrame(cta_data)
     _write_df(cta_df, f'{output_gs_dir}/CTA_2T_gt.csv', header=False)
-    _write_df(cta_df[['tab_id', 'col_id']], f'{output_target_dir}/CTA_2T_gt.csv', header=False)
+    _write_df(cta_df[['tab_id', 'col_id']], f'{output_target_dir}/CTA_2T_Targets.csv', header=False)
 
 
 def to_mantis_format(gs_dir, tables_dir, tables_list_file):
