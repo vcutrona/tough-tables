@@ -1,6 +1,6 @@
 # Rock bands that published with record labels founded by musicians, songwriters, or composers, ordered by their starting year. 
 
-select distinct ?band ?band__URI ?startYear ?label__URI ?label ?labelFounder ?labelFounder__URI ?occupation ?occupation__URI where {
+select distinct ?band ?band__URI ?startYear ?label ?label__URI ?labelFounder ?labelFounder__URI ?occupation ?occupation__URI where {
   ?band__URI a dbo:Band .
   ?band__URI foaf:name ?band .
   ?band__URI dbo:recordLabel ?label__URI .

@@ -578,12 +578,13 @@ def to_cea_format(input_dir, output_tables_dir, output_gs_dir, output_target_dir
 
                 count = 0
                 for col_id, (columnName, columnData) in enumerate(df.iteritems()):
+                    new_cols = [col for col in df.columns if '__URI' not in col]
                     if '__URI' in columnName:
                         count = count + 1
                         for row_id, value in columnData.iteritems():
                             if value is not np.nan:
                                 ann = {'tab_id': tab_id,
-                                       'col_id': str(col_id - count),
+                                       'col_id': str(new_cols.index(columnName.replace("__URI", ""))),
                                        'row_id': str(row_id + 1),  # row_id + 1 due to the header row
                                        'entity': value}
                                 annotations.append(ann)
@@ -597,7 +598,7 @@ def to_cea_format(input_dir, output_tables_dir, output_gs_dir, output_target_dir
                                 ann['entity'] = " ".join(sameas_dict[value])
                                 ext_annotations.append(ann)
 
-                df = df[[col for col in df.columns if '__URI' not in col]]
+                df = df[new_cols]
                 _write_df(df, f'{output_tables_dir}/{entry.name}')
 
             json.dump(sameas_dict, open('dbp_sameas.json', 'w'), indent=4)
