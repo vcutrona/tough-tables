@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import rdflib
-from SPARQLTransformer import sparqlTransformer
 from SPARQLWrapper import SPARQLWrapper, CSV, JSON
 
 logger = logging.getLogger('tough_tables')
@@ -68,10 +67,6 @@ def to_dbp_uri(uri, endpoint):
         return db_uri
     logger.warning(f'No DB_URI found for {uri} -> {db_uri}')
     return None
-
-
-def _json_exec(query, endpoint, debug=False):
-    return sparqlTransformer(query, {'endpoint': endpoint, 'debug': debug})
 
 
 def _sparql_exec(query, endpoint, ret_format):
@@ -403,67 +398,18 @@ def compute_score(gs_file, submission_file, tables_folder, wrong_cells_file, rem
 
 
 def _get_sameas(uri, endpoint):
-    sameas = set()
-    try:
-        sameas_query = {
-            "proto": {
-                "db": "?db$anchor",
-                "sameas": "?sameas"
-            },
-            "$prefixes": {
-                "dbo": "http://dbpedia.org/ontology/"
-            },
-            "$from": "http://dbpedia.org",
-            "$where": '?sameas dbo:wikiPageRedirects|owl:sameAs ?db .',
-            "$values": {
-                "db": uri
-            }
-        }
-        inverse_sameas_query = {
-            "proto": {
-                "db": "?main$anchor",
-                "sameas": "?sameas",
-                "redirected": "?redirected"
-            },
-            "$prefixes": {
-                "dbo": "http://dbpedia.org/ontology/"
-            },
-            "$from": "http://dbpedia.org",
-            "$where": """
-                {
-                    ?db dbo:wikiPageRedirects ?main .
-                    ?main owl:sameAs ?sameas .
-                    ?redirected dbo:wikiPageRedirects ?main .
-                }
-            """,
-            "$values": {
-                "db": uri
-            }
-        }
-
-        res1 = _json_exec(sameas_query, endpoint)
-        res2 = _json_exec(inverse_sameas_query, endpoint)
-        if res1:
-            sameas.add(res1[0]["db"])
-            if isinstance(res1[0]["sameas"], list):
-                sameas = sameas | set(res1[0]["sameas"])
-            else:
-                sameas.add(res1[0]["sameas"])
-        if res2:
-            sameas.add(res2[0]["db"])
-            if isinstance(res2[0]["sameas"], list):
-                sameas = sameas | set(res2[0]["sameas"])
-            else:
-                sameas.add(res2[0]["sameas"])
-            if isinstance(res2[0]["redirected"], list):
-                sameas = sameas | set(res2[0]["redirected"])
-            else:
-                sameas.add(res2[0]["redirected"])
-        if not res1 and not res2:
-            sameas.add(uri)
-    except:
-        print("error for URI", uri)
-    return list(filter(lambda x: 'http://dbpedia.org' in x, list(sameas)))
+    query = f"""
+    select distinct ?main ?sameas ?redirected where {{
+      {{ ?sameas <http://dbpedia.org/ontology/wikiPageRedirects>|owl:sameAs <{uri}> . }}
+      UNION
+      {{ <{uri}> <http://dbpedia.org/ontology/wikiPageRedirects> ?main .
+        ?main owl:sameAs ?sameas .
+        ?redirected <http://dbpedia.org/ontology/wikiPageRedirects> ?main . }}
+    }}
+    """
+    df = pd.read_csv(io.BytesIO(_sparql_exec(query, endpoint, CSV)), dtype=object)
+    sameas = {uri} | set(df['sameas'].dropna()) | set(df['redirected'].dropna()) | set(df['main'].dropna())
+    return sorted(list(filter(lambda x: x.startswith('http://dbpedia.org'), sameas)))
 
 
 def remove_duplicates_from_gs(input_dir):
