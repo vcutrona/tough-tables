@@ -134,11 +134,8 @@ def gt_stats(folder):
                 stats[entry.name]['entities'] = list(stats[entry.name]['entities'])
 
     for cat in TABLE_CATEGORIES:
-        if cat == 'ALL':
-            tmp_stats = stats
-        else:
-            include, exclude = TABLE_CATEGORIES[cat]
-            tmp_stats = {k: v for k, v in stats.items() if _is_table_in_cat(k, include, exclude)}
+        include, exclude = TABLE_CATEGORIES[cat]
+        tmp_stats = {k: v for k, v in stats.items() if _is_table_in_cat(k, include, exclude)}
         total_tables = len(tmp_stats)
         rows_lengths = list(map(lambda x: x['rows'], tmp_stats.values()))
         cols_lengths = list(map(lambda x: x['columns'], tmp_stats.values()))
@@ -153,19 +150,19 @@ def gt_stats(folder):
         print(cat)
         print('total tables:', total_tables)
 
-        print('Avg. Cols # (± Std Dev) <tot, min, max>: %.2f$\\pm$%.2f\\\\ (%d, %d, %d)'
+        print('Avg. Cols # (± Std Dev) <tot, min, max>: %.2f %.2f (%d, %d, %d)'
               % _compute_funcs(cols_lengths))
-        print('Avg. Rows # (± Std Dev) <tot, min, max>: %.2f$\\pm$%.2f\\\\ (%d, %d, %d)'
+        print('Avg. Rows # (± Std Dev) <tot, min, max>: %.2f %.2f (%d, %d, %d)'
               % _compute_funcs(rows_lengths))
-        print('Avg. Cells # (± Std Dev) <tot, min, max>: %.2f$\\pm$%.2f\\\\ (%d, %d, %d)'
+        print('Avg. Cells # (± Std Dev) <tot, min, max>: %.2f %.2f (%d, %d, %d)'
               % _compute_funcs(cells_lengths))
-        print('Avg. Columns with target cells # (± Std Dev) <tot, min, max>: %.2f$\\pm$%.2f\\\\ (%d, %d, %d)'
+        print('Avg. Columns with target cells # (± Std Dev) <tot, min, max>: %.2f %.2f (%d, %d, %d)'
               % _compute_funcs(ann_cols_lengths))
-        print('Avg. Target Cells # (± Std Dev) <tot, min, max>: %.2f$\\pm$%.2f\\\\ (%d, %d, %d)'
+        print('Avg. Target Cells # (± Std Dev) <tot, min, max>: %.2f %.2f (%d, %d, %d)'
               % _compute_funcs(ann_cells_lengths))
         s = list(_compute_funcs(distinct_entities_lengths))
         s[2] = len(distinct_entities)
-        print('Avg. Entities # (± Std Dev) <tot, min, max>: %.2f$\\pm$%.2f\\\\ (%d, %d, %d)'
+        print('Avg. Entities # (± Std Dev) <tot, min, max>: %.2f %.2f (%d, %d, %d)'
               % tuple(s))
         print("---")
     return stats
@@ -269,7 +266,46 @@ def f1_score(precision, recall):
     return (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
 
 
-def compute_score(gs_file, submission_file, tables_folder, wrong_cells_file, remove_unseen):
+def _get_radar_plot(scores, title):
+    categories = list(scores.keys())
+    N = len(categories)
+    angles = [n / float(N) * 2 * pi for n in range(N)]
+    angles += angles[:1]
+
+    f = plt.figure()
+    ax = plt.subplot(111, polar=True)
+    ax.set_theta_offset(pi / 2)
+    ax.set_theta_direction(-1)
+
+    plt.xticks(angles[:-1], categories)
+    ax.set_rlabel_position(0)
+    plt.yticks([.25, .5, .75], ["0.25", "0.50", "0.75"], color="grey", size=7)
+    plt.ylim(0, 1)
+
+    values = list(map(lambda x: x['f1'], scores.values()))
+    values += values[:1]
+    ax.plot(angles, values, linewidth=1, linestyle='solid', label="f1")
+    ax.fill(angles, values, 'b', alpha=0.1)
+    for angle, value in zip(angles, values):
+        ax.annotate(round(value, 2), (angle, value), size=8, weight='bold', ha='center', c='b')
+
+    values = list(map(lambda x: x['precision'], scores.values()))
+    values += values[:1]
+    ax.plot(angles, values, linewidth=1, linestyle='solid', label="precision")
+    ax.fill(angles, values, 'r', alpha=0.1)
+
+    values = list(map(lambda x: x['recall'], scores.values()))
+    values += values[:1]
+    ax.plot(angles, values, linewidth=1, linestyle='solid', label="recall")
+    ax.fill(angles, values, 'g', alpha=0.1)
+
+    plt.legend(loc='upper right', bbox_to_anchor=(0.1, 0.1))
+    plt.title(title, size=11, y=1.1)
+
+    return f
+
+
+def score_cea(gs_file, submission_file, tables_folder, wrong_cells_file, remove_unseen):
     """
     Notes (from SemTab2019 Evaluator codebase):
     6) Annotations for cells out of the target cells are ignored.
@@ -327,15 +363,10 @@ def compute_score(gs_file, submission_file, tables_folder, wrong_cells_file, rem
                 })
 
     for cat in TABLE_CATEGORIES:
-        if cat == 'ALL':
-            c_cells = correct_cells
-            a_cells = annotated_cells
-            g_cells = gt_cell_ent
-        else:
-            include, exclude = TABLE_CATEGORIES[cat]
-            c_cells = {x for x in correct_cells if _is_table_in_cat(x, include, exclude)}
-            a_cells = {x for x in annotated_cells if _is_table_in_cat(x, include, exclude)}
-            g_cells = dict(filter(lambda elem: _is_table_in_cat(elem[0], include, exclude), gt_cell_ent.items()))
+        include, exclude = TABLE_CATEGORIES[cat]
+        c_cells = {x for x in correct_cells if _is_table_in_cat(x, include, exclude)}
+        a_cells = {x for x in annotated_cells if _is_table_in_cat(x, include, exclude)}
+        g_cells = dict(filter(lambda elem: _is_table_in_cat(elem[0], include, exclude), gt_cell_ent.items()))
         if len(g_cells) > 0:
             precision = precision_score(c_cells, a_cells)
             recall = recall_score(c_cells, g_cells)
@@ -360,38 +391,7 @@ def compute_score(gs_file, submission_file, tables_folder, wrong_cells_file, rem
     if wrong_cells_file:
         _write_df(wcells, wrong_cells_file, strip=False)
 
-    categories = list(scores.keys())
-    N = len(categories)
-    angles = [n / float(N) * 2 * pi for n in range(N)]
-    angles += angles[:1]
-
-    f = plt.figure()
-    ax = plt.subplot(111, polar=True)
-    ax.set_theta_offset(pi / 2)
-    ax.set_theta_direction(-1)
-
-    plt.xticks(angles[:-1], categories)
-    ax.set_rlabel_position(0)
-    plt.yticks([.25, .5, .75], ["0.25", "0.50", "0.75"], color="grey", size=7)
-    plt.ylim(0, 1)
-
-    values = list(map(lambda x: x['f1'], scores.values()))
-    values += values[:1]
-    ax.plot(angles, values, linewidth=1, linestyle='solid', label="f1")
-    ax.fill(angles, values, 'b', alpha=0.1)
-
-    values = list(map(lambda x: x['precision'], scores.values()))
-    values += values[:1]
-    ax.plot(angles, values, linewidth=1, linestyle='solid', label="precision")
-    ax.fill(angles, values, 'r', alpha=0.1)
-
-    values = list(map(lambda x: x['recall'], scores.values()))
-    values += values[:1]
-    ax.plot(angles, values, linewidth=1, linestyle='solid', label="recall")
-    ax.fill(angles, values, 'y', alpha=0.1)
-
-    plt.legend(loc='upper right', bbox_to_anchor=(0.1, 0.1))
-    plt.show()
+    f = _get_radar_plot(scores, submission_file[:-4])
     f.savefig(f"{submission_file[:-4]}_score.pdf", bbox_inches='tight')
 
     return scores
@@ -694,8 +694,7 @@ if __name__ == '__main__':
 
     wiki_argparser = subparsers.add_parser("wiki", help='Transform Wikipedia tables.')
     wiki_argparser.set_defaults(action='wiki')
-    wiki_argparser.add_argument('--input_folder', type=str, default='./wiki',
-                                help='Path to the folder containing Wikipedia tables. DEFAULT: ./wiki')
+    wiki_argparser.add_argument('--input_folder', type=str, help='Path to the folder containing Wikipedia tables')
     wiki_argparser.add_argument('--output_folder', type=str, default='./gs',
                                 help='Path to output folder. DEFAULT: ./gs')
     wiki_argparser.add_argument('--endpoint', type=str, default=SPARQL_ENDPOINT,
@@ -703,8 +702,7 @@ if __name__ == '__main__':
 
     web_argparser = subparsers.add_parser("web", help='Transform Web tables.')
     web_argparser.set_defaults(action='web')
-    web_argparser.add_argument('--input_folder', type=str, default='./web',
-                               help='Path to the folder containing Web tables. DEFAULT: ./web')
+    web_argparser.add_argument('--input_folder', type=str, help='Path to the folder containing Web tables.')
     web_argparser.add_argument('--output_folder', type=str, default='./gs',
                                help='Path to output folder. DEFAULT: ./gs')
     web_argparser.add_argument('--endpoint', type=str, default=SPARQL_ENDPOINT,
@@ -712,16 +710,15 @@ if __name__ == '__main__':
 
     dbp_argparser = subparsers.add_parser("dbp", help='Create tables from DBpedia SPARQL queries.')
     dbp_argparser.set_defaults(action='dbp')
-    dbp_argparser.add_argument('--input_folder', type=str, default='./dbp',
-                               help='Path to the folder containing queries (.rq files). DEFAULT: ./dbp')
+    dbp_argparser.add_argument('--input_folder', type=str, help='Path to the folder containing queries (.rq files).')
     dbp_argparser.add_argument('--output_folder', type=str, default='./gs', help='Path to output folder. DEFAULT: ./gs')
     dbp_argparser.add_argument('--endpoint', type=str, default=SPARQL_ENDPOINT,
                                help=f'SPARQL endpoint. DEFAULT: {SPARQL_ENDPOINT}')
 
     t2d_argparser = subparsers.add_parser("t2d", help='Transform T2D tables.')
     t2d_argparser.set_defaults(action='t2d')
-    t2d_argparser.add_argument('--input_folder', type=str, default='./t2d',
-                               help='Path to the folder containing T2D tables. DEFAULT: ./t2d')
+    t2d_argparser.add_argument('--input_folder', type=str,
+                               help='Path to the folder containing T2D tables.')
     t2d_argparser.add_argument('--output_folder', type=str, default='./gs', help='Path to output folder. DEFAULT: ./gs')
     t2d_argparser.add_argument('--endpoint', type=str, default=SPARQL_ENDPOINT,
                                help=f'SPARQL endpoint. DEFAULT: {SPARQL_ENDPOINT}')
@@ -767,31 +764,30 @@ if __name__ == '__main__':
 
     to_mantis_argparser = subparsers.add_parser("to_mantis", help='Convert GS tables to Mantistable format.')
     to_mantis_argparser.set_defaults(action='to_mantis')
-    to_mantis_argparser.add_argument('--input_folder', type=str, default='./2T_cea/tables',
-                                     help='Path to the folder containing GS tables. DEFAULT: ./2T_cea/tables')
+    to_mantis_argparser.add_argument('--input_folder', type=str, default='./2T/tables',
+                                     help='Path to the folder containing GS tables. DEFAULT: ./2T/tables')
     to_mantis_argparser.add_argument('--tables_folder', type=str, help='Path to Mantistable folder.')
     to_mantis_argparser.add_argument('--tables_list_file', type=str, default=None,
                                      help='File to store the list of tables to be imported. DEFAULT: None')
 
     to_idlab_argparser = subparsers.add_parser("to_idlab", help='Convert GS tables to IDLab format.')
     to_idlab_argparser.set_defaults(action='to_idlab')
-    to_idlab_argparser.add_argument('--gs_file', type=str, default='./cea_gs/cea_gs_EXT.csv',
-                                    help='Path to the ground truth file.')
+    to_idlab_argparser.add_argument('--gs_file', type=str, default='./2T/gt/CEA_2T_gt.csv',
+                                    help='Path to the ground truth file. DEFAULT: ./2T/gt/CEA_2T_gt.csv')
     to_idlab_argparser.add_argument('--output_folder', type=str, help='Path to IDLab target files folder.')
 
-    scorer_argparser = subparsers.add_parser("score", help='Evaluate your annotation system.')
-    scorer_argparser.set_defaults(action='score')
-    scorer_argparser.add_argument('--annotations_file', type=str, help='Path to the annotations file (CEA format).')
-    scorer_argparser.add_argument('--gs_file', type=str, default='./2T_cea/2T_gt.csv',
-                                  help='Path to the ground truth file. DEFAULT: ./2T_cea/2T_gt.csv')
-    scorer_argparser.add_argument('--tables_folder', type=str, default=None,
-                                  help='Path to folder with original tables. Provide it only if you want cells content '
-                                       'along with wrong annotations. DEFAULT: None')
-    scorer_argparser.add_argument('--wrong_cells_file', type=str, default=None,
-                                  help='File to store the wrong cells as CSV.  DEFAULT: None')
-    scorer_argparser.add_argument('--remove_unseen', action='store_true',
-                                  help='Remove unseen tables from the evaluation.')
-
+    cea_scorer_argparser = subparsers.add_parser("score_cea", help='Evaluate your annotation system (CEA).')
+    cea_scorer_argparser.set_defaults(action='score_cea')
+    cea_scorer_argparser.add_argument('--annotations_file', type=str, help='Path to the annotations file (CEA format).')
+    cea_scorer_argparser.add_argument('--gs_file', type=str, default='./2T/gt/CEA_2T_gt.csv',
+                                      help='Path to the ground truth file. DEFAULT: ./2T/gt/CEA_2T_gt.csv')
+    cea_scorer_argparser.add_argument('--tables_folder', type=str, default=None,
+                                      help='Path to folder with original tables. Provide it only if you want cells'
+                                           'content along with wrong annotations. DEFAULT: None')
+    cea_scorer_argparser.add_argument('--wrong_cells_file', type=str, default=None,
+                                      help='File to store the wrong cells as CSV.  DEFAULT: None')
+    cea_scorer_argparser.add_argument('--remove_unseen', action='store_true',
+                                      help='Remove unseen tables from the evaluation.')
     make_gs_argparser = subparsers.add_parser("make_gs",
                                               help='Automatic script for getting a new GS from all the tables.')
     make_gs_argparser.set_defaults(action='make_gs')
@@ -825,10 +821,10 @@ if __name__ == '__main__':
             to_mantis_format(args.input_folder, args.tables_folder, args.tables_list_file)
         elif args.action == 'to_idlab':
             to_idlab_format(args.gs_file, args.output_folder)
-        elif args.action == 'score':
+        elif args.action == 'score_cea':
             print(json.dumps(
-                compute_score(args.gs_file, args.annotations_file, args.tables_folder, args.wrong_cells_file,
-                              args.remove_unseen), indent=4))
+                score_cea(args.gs_file, args.annotations_file, args.tables_folder, args.wrong_cells_file,
+                          args.remove_unseen), indent=4))
         elif args.action == 'make_gs':
             make_gs(args.output_folder, args.endpoint)
 

@@ -1,8 +1,6 @@
-*_bkp/
-2T_cea/tables/*.csv
-2T_cea/*.csv
-2T_cta/*.csv
-dbp_*.json
+2T
+2T_WD
+resources/
 
 # Created by https://www.gitignore.io/api/python,virtualenv,jupyternotebooks
 # Edit at https://www.gitignore.io/?templates=python,virtualenv,jupyternotebooks
