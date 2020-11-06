@@ -85,6 +85,7 @@ python tough_tables.py --help
 ## SemTab2020 Version
 The 2T dataset has been converted into its corresponding Wikidata version and it has been adopted as part of the
 SemTab2020 challenge - Round 4.
+
 **NOTE: the new format for CEA is <tab_id, row_id, col_id, entity>.**
 Check out the [SemTab 2020](http://www.cs.ox.ac.uk/isg/challenges/sem-tab/2020/index.html) website for more details.
 
@@ -100,7 +101,7 @@ directory to generate a conversion map:
 A pre-computed conversion map is available under the `resources` directory (`db_wd_conversion_map.pickle`).
 
 
-##Credits
+## Credits
 Along with packages listed in the requirements, this repository uses the
 [tabular-data-semantics-py](https://github.com/ernestojimenezruiz/tabular-data-semantics-py) package to query
 SPARQL endpoints. We slightly adapted the package to meet our needs (the resultant version is available under the
